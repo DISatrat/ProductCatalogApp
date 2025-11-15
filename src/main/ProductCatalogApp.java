@@ -15,8 +15,6 @@ import main.service.user.UserService;
 import main.service.user.UserServiceImpl;
 import main.ui.ConsoleUI;
 import main.cache.QueryCache;
-import main.model.User;
-import main.util.PersistenceUtil;
 
 /**
  * Главный класс приложения "Маркетплейс".
