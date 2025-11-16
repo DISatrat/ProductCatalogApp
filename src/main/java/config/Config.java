@@ -42,7 +42,6 @@ public class Config {
         return (String) dbConfig.get("defaultSchema");
     }
 
-    // ИСПРАВЬ ЭТИ МЕТОДЫ - ИЩИ В "migrations", а не в "liquibase"
     public String getLiquibaseChangeLog() {
         Map<String, Object> migrationsConfig = (Map<String, Object>) config.get("migrations");
         return (String) migrationsConfig.get("change-log");
