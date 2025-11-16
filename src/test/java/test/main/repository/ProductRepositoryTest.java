@@ -146,23 +146,18 @@ public class ProductRepositoryTest extends TestBase {
         repository.create("Galaxy S24", "Electronics", "Samsung", 899.99, "Smartphone", testUserId);
         repository.create("ThinkPad", "Electronics", "Lenovo", 1299.99, "Laptop", testUserId);
 
-        // Search by name substring
         List<Product> appleProducts = repository.search("iphone", null, null, null, null);
         assertTrue(appleProducts.size() >= 1, "Should find products by name substring");
 
-        // Search by category
         List<Product> electronics = repository.search(null, "Electronics", null, null, null);
         assertTrue(electronics.size() >= 4, "Should find products by category");
 
-        // Search by brand
         List<Product> appleBrand = repository.search(null, null, "Apple", null, null);
         assertTrue(appleBrand.size() >= 2, "Should find products by brand");
 
-        // Search by price range
         List<Product> cheapProducts = repository.search(null, null, null, 0.0, 1000.0);
         assertTrue(cheapProducts.size() >= 2, "Should find products by price range");
 
-        // Combined search
         List<Product> appleLaptops = repository.search(null, "Electronics", "Apple", 1500.0, 2500.0);
         assertTrue(appleLaptops.size() >= 1, "Should find products by combined criteria");
 
