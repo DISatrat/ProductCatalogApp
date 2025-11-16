@@ -47,16 +47,13 @@ public class AuditServiceTest extends TestBase {
     private void testRecord() {
         System.out.println("Running testRecord...");
 
-        // Record some audit entries
         auditService.record("testuser", "LOGIN", "User logged into the system");
         auditService.record("admin", "CREATE_PRODUCT", "Created product: iPhone 15");
         auditService.record("user123", "SEARCH", "Searched for: laptops");
 
-        // Verify entries were recorded by retrieving them
         List<AuditEntry> entries = auditService.getEntries();
         assertTrue(entries.size() >= 3, "Should have recorded audit entries");
 
-        // Verify the content of entries
         boolean foundLogin = false;
         boolean foundCreateProduct = false;
         boolean foundSearch = false;
