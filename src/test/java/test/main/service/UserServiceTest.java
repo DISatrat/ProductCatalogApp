@@ -51,16 +51,13 @@ public class UserServiceTest extends TestBase {
     private void testFindByUsername() {
         System.out.println("Running testFindByUsername...");
 
-        // Create test user
         User testUser = new User("testuser_find", "password123");
         userService.addUser(testUser);
 
-        // Test finding existing user
         Optional<User> found = userService.findByUsername("testuser_find");
         assertTrue(found.isPresent(), "Should find user by username");
         assertEquals("testuser_find", found.get().getUsername(), "Username should match");
 
-        // Test finding non-existent user
         Optional<User> notFound = userService.findByUsername("nonexistent_user");
         assertFalse(notFound.isPresent(), "Should not find non-existent user");
 
@@ -73,7 +70,6 @@ public class UserServiceTest extends TestBase {
         User newUser = new User("new_test_user", "password456");
         userService.addUser(newUser);
 
-        // Verify user was added
         Optional<User> found = userService.findByUsername("new_test_user");
         assertTrue(found.isPresent(), "Added user should be findable");
         assertEquals("new_test_user", found.get().getUsername(), "Username should match");
