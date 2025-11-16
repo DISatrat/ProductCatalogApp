@@ -123,7 +123,6 @@ public class ProductServiceTest extends TestBase {
         productService.createProduct("MacBook Pro", "Electronics", "Apple", 1999.99, "Laptop", testUserId);
         productService.createProduct("Galaxy S24", "Electronics", "Samsung", 899.99, "Smartphone", testUserId);
 
-        // Test search with caching
         List<Product> appleProducts = productService.searchProducts("iphone", null, null, null, null);
         assertTrue(appleProducts.size() >= 1, "Should find products by name substring");
 
@@ -168,14 +167,11 @@ public class ProductServiceTest extends TestBase {
     private void testCacheInvalidation() {
         System.out.println("Running testCacheInvalidation...");
 
-        // First search - should cache
         productService.createProduct("Cache Test", "Electronics", "Brand", 100.0, "Desc", testUserId);
         List<Product> firstSearch = productService.searchProducts("cache", null, null, null, null);
 
-        // Create new product - should invalidate cache
         productService.createProduct("Cache Test 2", "Electronics", "Brand", 200.0, "Desc", testUserId);
 
-        // Second search - should not use cache due to invalidation
         List<Product> secondSearch = productService.searchProducts("cache", null, null, null, null);
         assertTrue(secondSearch.size() >= 2, "Should find both products after cache invalidation");
 
