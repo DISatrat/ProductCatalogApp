@@ -1,0 +1,14 @@
+database:
+  host: "localhost"
+  port: 5432
+  name: "marketplace_db"
+  defaultSchema: "app_schema"
+  username: "disa"
+  password: "disa12"
+  sslmode: "disable"
+
+migrations:
+  change-log: "db/changelog/changelog-master.yaml"
+  contexts: "dev"
+  liquibase:
+    schema: "liquibase_schema"

@@ -1,0 +1,195 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-sequences
+      author: dev
+      changes:
+        - createSequence:
+            schemaName: app_schema
+            sequenceName: users_id_seq
+            startValue: 1
+            incrementBy: 1
+
+        - createSequence:
+            schemaName: app_schema
+            sequenceName: products_id_seq
+            startValue: 1
+            incrementBy: 1
+
+        - createSequence:
+            schemaName: app_schema
+            sequenceName: audit_entries_id_seq
+            startValue: 1
+            incrementBy: 1
+
+  - changeSet:
+      id: 001-create-users-table
+      author: dev
+      changes:
+        - createTable:
+            schemaName: app_schema
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: password_hash
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_role
+                  type: VARCHAR(20)
+                  defaultValue: "USER"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: "NOW()"
+
+        - addDefaultValue:
+            schemaName: app_schema
+            tableName: users
+            columnName: id
+            defaultValueSequenceNext: "users_id_seq"
+
+  - changeSet:
+      id: 001-create-products-table
+      author: dev
+      changes:
+        - createTable:
+            schemaName: app_schema
+            tableName: products
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: brand
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: price
+                  type: DECIMAL(10,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: "NOW()"
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: "NOW()"
+
+        - addDefaultValue:
+            schemaName: app_schema
+            tableName: products
+            columnName: id
+            defaultValueSequenceNext: "products_id_seq"
+
+        - addForeignKeyConstraint:
+            baseTableSchemaName: app_schema
+            baseTableName: products
+            baseColumnNames: user_id
+            referencedTableSchemaName: app_schema
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_products_user
+
+        - createIndex:
+            schemaName: app_schema
+            indexName: idx_products_user_id
+            tableName: products
+            columns:
+              - column:
+                  name: user_id
+
+  - changeSet:
+      id: 001-create-audit-table
+      author: dev
+      changes:
+        - createTable:
+            schemaName: app_schema
+            tableName: audit_entries
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: timestamp
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: username
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: action
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: details
+                  type: TEXT
+                  constraints:
+                    nullable: false
+
+        - addDefaultValue:
+            schemaName: app_schema
+            tableName: audit_entries
+            columnName: id
+            defaultValueSequenceNext: "audit_entries_id_seq"
+
+        - createIndex:
+            schemaName: app_schema
+            indexName: idx_audit_timestamp
+            tableName: audit_entries
+            columns:
+              - column:
+                  name: timestamp
+
+        - createIndex:
+            schemaName: app_schema
+            indexName: idx_audit_username
+            tableName: audit_entries
+            columns:
+              - column:
+                  name: username
