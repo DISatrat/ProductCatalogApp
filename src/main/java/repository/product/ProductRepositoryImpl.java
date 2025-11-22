@@ -1,6 +1,10 @@
 package repository.product;
 
+import exception.EntityNotFoundException;
+import exception.ProductRepositoryException;
 import model.Product;
+import util.ConnectionPoolManager;
+import util.SQLConstants;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -10,18 +14,21 @@ import java.util.Optional;
 /**
  * Реализация репозитория товаров
  */
+/**
+ * Реализация репозитория товаров
+ */
 public class ProductRepositoryImpl implements ProductRepository {
-    private final Connection connection;
+    // Убираем поле connection
 
-    public ProductRepositoryImpl(Connection connection) {
-        this.connection = connection;
+    public ProductRepositoryImpl() {
+        // Конструктор без параметров
     }
 
     @Override
     public Product create(String name, String category, String brand, double price, String description, Long userId) {
-        String sql = "INSERT INTO app_schema.products (name, category, brand, price, description, user_id) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Product.INSERT, Statement.RETURN_GENERATED_KEYS)) {
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, name);
             stmt.setString(2, category);
             stmt.setString(3, brand);
@@ -31,27 +38,30 @@ public class ProductRepositoryImpl implements ProductRepository {
 
             int affectedRows = stmt.executeUpdate();
 
-            if (affectedRows > 0) {
-                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        long newId = generatedKeys.getLong(1);
-                        return findById(newId).orElseThrow(() ->
-                                new RuntimeException("Failed to retrieve created product"));
-                    }
+            if (affectedRows == 0) {
+                throw new ProductRepositoryException("Failed to create product, no rows affected");
+            }
+
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    long newId = generatedKeys.getLong(1);
+                    return findById(newId).orElseThrow(() ->
+                            new EntityNotFoundException("Failed to retrieve created product with ID: " + newId));
+                } else {
+                    throw new ProductRepositoryException("Failed to retrieve generated product ID");
                 }
             }
-            throw new RuntimeException("Failed to create product");
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while creating product", e);
+            throw new ProductRepositoryException("Database error while creating product", e);
         }
     }
 
     @Override
-    public boolean update(long id, String name, String category, String brand, Double price, String description) {
-        String sql = "UPDATE app_schema.products SET name = ?, category = ?, brand = ?, price = ?, description = ?, updated_at = NOW() WHERE id = ?";
+    public Product update(long id, String name, String category, String brand, Double price, String description) {
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Product.UPDATE)) {
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, name);
             stmt.setString(2, category);
             stmt.setString(3, brand);
@@ -59,18 +69,25 @@ public class ProductRepositoryImpl implements ProductRepository {
             stmt.setString(5, description);
             stmt.setLong(6, id);
 
-            return stmt.executeUpdate() > 0;
+            int affectedRows = stmt.executeUpdate();
+
+            if (affectedRows == 0) {
+                throw new EntityNotFoundException("Product not found with ID: " + id);
+            }
+
+            return findById(id)
+                    .orElseThrow(() -> new ProductRepositoryException("Failed to retrieve updated product with ID: " + id));
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while updating product", e);
+            throw new ProductRepositoryException("Database error while updating product with ID: " + id, e);
         }
     }
 
     @Override
     public Optional<Product> findById(long id) {
-        String sql = "SELECT id, name, category, brand, price, description, created_at, updated_at FROM app_schema.products WHERE id = ?";
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Product.SELECT_BY_ID)) {
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setLong(1, id);
             ResultSet rs = stmt.executeQuery();
 
@@ -89,16 +106,16 @@ public class ProductRepositoryImpl implements ProductRepository {
             return Optional.empty();
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while finding product by ID", e);
+            throw new ProductRepositoryException("Database error while finding product by ID: " + id, e);
         }
     }
 
     @Override
     public List<Product> findAll() {
         List<Product> products = new ArrayList<>();
-        String sql = "SELECT id, name, category, brand, price, description, created_at, updated_at FROM app_schema.products ORDER BY id";
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Product.SELECT_ALL);
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
@@ -115,7 +132,7 @@ public class ProductRepositoryImpl implements ProductRepository {
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while finding all products", e);
+            throw new ProductRepositoryException("Database error while retrieving all products", e);
         }
 
         return products;
@@ -123,20 +140,22 @@ public class ProductRepositoryImpl implements ProductRepository {
 
     @Override
     public boolean delete(long id) {
-        String sql = "DELETE FROM app_schema.products WHERE id = ?";
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Product.DELETE)) {
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setLong(1, id);
-            return stmt.executeUpdate() > 0;
+
+            int affectedRows = stmt.executeUpdate();
+            return affectedRows > 0;
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while deleting product", e);
+            throw new ProductRepositoryException("Database error while deleting product with ID: " + id, e);
         }
     }
 
     @Override
     public boolean updatePartial(long id, String name, String category, String brand, Double price, String description) {
-        StringBuilder sql = new StringBuilder("UPDATE app_schema.products SET ");
+        StringBuilder sql = new StringBuilder("UPDATE " + SQLConstants.Product.TABLE + " SET ");
         List<Object> params = new ArrayList<>();
 
         if (name != null) {
@@ -160,27 +179,31 @@ public class ProductRepositoryImpl implements ProductRepository {
             params.add(description);
         }
 
+        if (params.isEmpty()) {
+            throw new IllegalArgumentException("No fields to update for product with ID: " + id);
+        }
+
         sql.append("updated_at = NOW() WHERE id = ?");
         params.add(id);
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
+
             for (int i = 0; i < params.size(); i++) {
                 stmt.setObject(i + 1, params.get(i));
             }
 
-            return stmt.executeUpdate() > 0;
+            int affectedRows = stmt.executeUpdate();
+            return affectedRows > 0;
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while partially updating product", e);
+            throw new ProductRepositoryException("Database error while partially updating product with ID: " + id, e);
         }
     }
 
     @Override
     public List<Product> search(String nameSubstring, String category, String brand, Double minPrice, Double maxPrice) {
-        StringBuilder sql = new StringBuilder(
-                "SELECT id, name, category, brand, price, description, created_at, updated_at " +
-                        "FROM app_schema.products WHERE 1=1"
-        );
+        StringBuilder sql = new StringBuilder(SQLConstants.Product.BASE_SEARCH);
         List<Object> params = new ArrayList<>();
 
         if (nameSubstring != null && !nameSubstring.isEmpty()) {
@@ -205,9 +228,11 @@ public class ProductRepositoryImpl implements ProductRepository {
         }
 
         sql.append(" ORDER BY id");
-
         List<Product> products = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
+
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
+
             for (int i = 0; i < params.size(); i++) {
                 stmt.setObject(i + 1, params.get(i));
             }
@@ -227,7 +252,7 @@ public class ProductRepositoryImpl implements ProductRepository {
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while searching products", e);
+            throw new ProductRepositoryException("Database error while searching products", e);
         }
 
         return products;
@@ -235,9 +260,8 @@ public class ProductRepositoryImpl implements ProductRepository {
 
     @Override
     public int getCount() {
-        String sql = "SELECT COUNT(*) FROM app_schema.products";
-
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Product.COUNT);
              ResultSet rs = stmt.executeQuery()) {
 
             if (rs.next()) {
@@ -246,11 +270,14 @@ public class ProductRepositoryImpl implements ProductRepository {
             return 0;
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while counting products", e);
+            throw new ProductRepositoryException("Database error while counting products", e);
         }
     }
 
-    private void setProductTimestamps(Product product, ResultSet rs) throws SQLException {
+    /**
+     * Устанавливает временные метки продукта через рефлексию
+     */
+    private void setProductTimestamps(Product product, ResultSet rs) {
         try {
             java.lang.reflect.Field createdAtField = Product.class.getDeclaredField("createdAt");
             java.lang.reflect.Field updatedAtField = Product.class.getDeclaredField("updatedAt");
@@ -258,11 +285,20 @@ public class ProductRepositoryImpl implements ProductRepository {
             createdAtField.setAccessible(true);
             updatedAtField.setAccessible(true);
 
-            createdAtField.set(product, rs.getTimestamp("created_at"));
-            updatedAtField.set(product, rs.getTimestamp("updated_at"));
+            Timestamp createdAt = rs.getTimestamp("created_at");
+            Timestamp updatedAt = rs.getTimestamp("updated_at");
 
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot set product timestamps", e);
+            if (!rs.wasNull()) {
+                createdAtField.set(product, createdAt);
+                updatedAtField.set(product, updatedAt);
+            }
+
+        } catch (NoSuchFieldException e) {
+            throw new ProductRepositoryException("Product class does not have timestamp fields", e);
+        } catch (IllegalAccessException e) {
+            throw new ProductRepositoryException("Cannot access timestamp fields in Product class", e);
+        } catch (SQLException e) {
+            throw new ProductRepositoryException("Error reading timestamps from ResultSet", e);
         }
     }
 }

@@ -1,10 +1,16 @@
 package repository.audit;
 
+import exception.AuditRepositoryException;
 import model.AuditEntry;
+import util.ConnectionPoolManager;
+import util.SQLConstants;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
-import java.sql.*;
 import java.util.ArrayList;
 
 /**
@@ -12,35 +18,36 @@ import java.util.ArrayList;
  */
 public class AuditRepositoryImpl implements AuditRepository {
 
-    private final Connection connection;
-
-    public AuditRepositoryImpl(Connection connection) {
-        this.connection = connection;
+    public AuditRepositoryImpl() {
     }
 
     @Override
     public void record(String username, String action, String details) {
-        String sql = "INSERT INTO app_schema.audit_entries (timestamp, username, action, details) VALUES (?, ?, ?, ?)";
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Audit.INSERT)) {
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
             stmt.setString(2, username);
             stmt.setString(3, action);
             stmt.setString(4, details);
 
-            stmt.executeUpdate();
+            int affectedRows = stmt.executeUpdate();
+            if (affectedRows == 0) {
+                throw new AuditRepositoryException("Failed to record audit entry, no rows affected");
+            }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while recording audit entry", e);
+            throw new AuditRepositoryException(
+                    String.format("Database error while recording audit entry [user: %s, action: %s]", username, action), e);
         }
     }
 
     @Override
     public List<AuditEntry> getEntries() {
         List<AuditEntry> entries = new ArrayList<>();
-        String sql = "SELECT id, timestamp, username, action, details FROM app_schema.audit_entries ORDER BY timestamp DESC";
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.Audit.SELECT_ALL);
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
@@ -54,7 +61,7 @@ public class AuditRepositoryImpl implements AuditRepository {
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while retrieving audit entries", e);
+            throw new AuditRepositoryException("Database error while retrieving audit entries", e);
         }
 
         return entries;

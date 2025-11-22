@@ -1,6 +1,7 @@
 package test.main.service;
 
 import model.User;
+import model.enums.UserRole;
 import repository.user.UserRepository;
 import repository.user.UserRepositoryImpl;
 import service.user.UserService;
@@ -9,157 +10,213 @@ import test.TestBase;
 
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-public class UserServiceTest extends TestBase {
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
-    private UserService userService;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class UserServiceTest {
+
+    @Mock
     private UserRepository userRepository;
 
-    public static void main(String[] args) {
-        try {
-            UserServiceTest test = new UserServiceTest();
-            test.runAllTests();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    private UserService userService;
 
-    public void runAllTests() throws Exception {
-        setUp();
-
-        testFindByUsername();
-        testAddUser();
-        testGetUsers();
-        testHashPassword();
-        testCheckPassword();
-
-        tearDown();
-        System.out.println("All UserService tests passed!");
-    }
-
-    private void setUp() throws Exception {
-        TestBase.setUpAll();
-        userRepository = new UserRepositoryImpl(connection);
+    @BeforeEach
+    void setUp() {
         userService = new UserServiceImpl(userRepository);
-        clearUsers();
     }
 
-    private void tearDown() throws Exception {
-        TestBase.tearDownAll();
+    @Test
+    void testFindByUsername_Found() {
+        String username = "testuser";
+        User expectedUser = createUser(1L, username, "hashedPassword", UserRole.USER);
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(expectedUser));
+
+        Optional<User> result = userService.findByUsername(username);
+
+        assertTrue(result.isPresent());
+        assertEquals(expectedUser, result.get());
+        verify(userRepository, times(1)).findByUsername(username);
     }
 
-    private void testFindByUsername() {
-        System.out.println("Running testFindByUsername...");
+    @Test
+    void testFindByUsername_NotFound() {
+        String username = "nonexistent";
+        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
 
-        User testUser = new User("testuser_find", "password123");
-        userService.addUser(testUser);
+        Optional<User> result = userService.findByUsername(username);
 
-        Optional<User> found = userService.findByUsername("testuser_find");
-        assertTrue(found.isPresent(), "Should find user by username");
-        assertEquals("testuser_find", found.get().getUsername(), "Username should match");
-
-        Optional<User> notFound = userService.findByUsername("nonexistent_user");
-        assertFalse(notFound.isPresent(), "Should not find non-existent user");
-
-        System.out.println("testFindByUsername PASSED");
+        assertFalse(result.isPresent());
+        verify(userRepository, times(1)).findByUsername(username);
     }
 
-    private void testAddUser() {
-        System.out.println("Running testAddUser...");
+    @Test
+    void testFindByUsername_NullUsername() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            userService.findByUsername(null);
+        });
+        verify(userRepository, never()).findByUsername(any());
+    }
 
-        User newUser = new User("new_test_user", "password456");
+    @Test
+    void testAddUser() {
+        User newUser = createUser(null, "newuser", "plainPassword", UserRole.USER);
+        when(userRepository.findByUsername("newuser")).thenReturn(Optional.empty());
+        doNothing().when(userRepository).addUser(any(User.class));
+
         userService.addUser(newUser);
 
-        Optional<User> found = userService.findByUsername("new_test_user");
-        assertTrue(found.isPresent(), "Added user should be findable");
-        assertEquals("new_test_user", found.get().getUsername(), "Username should match");
-        assertEquals("USER", found.get().getUserRole(), "Role should match");
-
-        System.out.println("testAddUser PASSED");
+        verify(userRepository, times(1)).findByUsername("newuser");
+        verify(userRepository, times(1)).addUser(newUser);
     }
 
-    private void testGetUsers() throws Exception {
-        System.out.println("Running testGetUsers...");
+    @Test
+    void testAddUser_AlreadyExists() {
+        User existingUser = createUser(1L, "existinguser", "password", UserRole.USER);
+        when(userRepository.findByUsername("existinguser")).thenReturn(Optional.of(existingUser));
 
-        clearUsers();
-
-        User user1 = new User("user1", "pass1");
-        User user2 = new User("user2", "pass2");
-        user2.makeUserAdmin();
-        userService.addUser(user1);
-        userService.addUser(user2);
-
-        List<User> users = userService.getUsers();
-        assertTrue(users.size() >= 2, "Should return all users");
-
-        boolean foundUser1 = users.stream().anyMatch(u -> "user1".equals(u.getUsername()));
-        boolean foundUser2 = users.stream().anyMatch(u -> "user2".equals(u.getUsername()));
-        assertTrue(foundUser1, "Should contain user1");
-        assertTrue(foundUser2, "Should contain user2");
-
-        System.out.println("testGetUsers PASSED - found " + users.size() + " users");
+        assertThrows(IllegalStateException.class, () -> {
+            userService.addUser(existingUser);
+        });
+        verify(userRepository, times(1)).findByUsername("existinguser");
+        verify(userRepository, never()).addUser(any());
     }
 
-    private void testHashPassword() {
-        System.out.println("Running testHashPassword...");
+    @Test
+    void testAddUser_NullUser() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            userService.addUser(null);
+        });
+        verify(userRepository, never()).findByUsername(any());
+        verify(userRepository, never()).addUser(any());
+    }
 
+    @Test
+    void testGetUsers() {
+        List<User> expectedUsers = Arrays.asList(
+                createUser(1L, "user1", "hash1", UserRole.USER),
+                createUser(2L, "user2", "hash2", UserRole.ADMIN)
+        );
+        when(userRepository.findAll()).thenReturn(expectedUsers);
+
+        List<User> result = userService.getUsers();
+
+        assertEquals(expectedUsers, result);
+        assertEquals(2, result.size());
+        verify(userRepository, times(1)).findAll();
+    }
+
+    @Test
+    void testGetUsers_Empty() {
+        when(userRepository.findAll()).thenReturn(List.of());
+
+        List<User> result = userService.getUsers();
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(userRepository, times(1)).findAll();
+    }
+
+    @Test
+    void testHashPassword() {
         String password = "testPassword123";
+
+        String hash1 = userService.hashPassword(password);
+        String hash2 = userService.hashPassword(password);
+
+        assertNotNull(hash1);
+        assertFalse(hash1.isEmpty());
+        assertEquals(hash1, hash2, "Same password should produce same hash");
+    }
+
+    @Test
+    void testHashPassword_NullPassword() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            userService.hashPassword(null);
+        });
+    }
+
+    @Test
+    void testHashPassword_EmptyPassword() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            userService.hashPassword("");
+        });
+    }
+
+    @Test
+    void testCheckPassword_Correct() {
+        String password = "mySecretPassword";
         String hash = userService.hashPassword(password);
 
-        assertNotNull(hash, "Hash should not be null");
-        assertFalse(hash.isEmpty(), "Hash should not be empty");
+        boolean result = userService.checkPassword(password, hash);
 
-        String hash2 = userService.hashPassword(password);
-        assertEquals(hash, hash2, "Same password should produce same hash");
-
-        String differentPassword = "differentPassword";
-        String differentHash = userService.hashPassword(differentPassword);
-        assertFalse(hash.equals(differentHash), "Different passwords should produce different hashes");
-
-        System.out.println("testHashPassword PASSED");
+        assertTrue(result);
     }
 
-    private void testCheckPassword() {
-        System.out.println("Running testCheckPassword...");
-
-        String password = "mySecretPassword";
-        String correctHash = userService.hashPassword(password);
+    @Test
+    void testCheckPassword_WrongPassword() {
+        String correctPassword = "mySecretPassword";
         String wrongPassword = "wrongPassword";
+        String hash = userService.hashPassword(correctPassword);
 
-        boolean correct = userService.checkPassword(password, correctHash);
-        assertTrue(correct, "Should return true for correct password");
+        boolean result = userService.checkPassword(wrongPassword, hash);
 
-        boolean wrong = userService.checkPassword(wrongPassword, correctHash);
-        assertFalse(wrong, "Should return false for wrong password");
-
-        String differentHash = userService.hashPassword("otherPassword");
-        boolean different = userService.checkPassword(password, differentHash);
-        assertFalse(different, "Should return false for incorrect hash");
-
-        System.out.println("testCheckPassword PASSED");
+        assertFalse(result);
     }
 
-    protected void assertTrue(boolean condition, String message) {
-        if (!condition) {
-            throw new AssertionError("FAIL: " + message);
-        }
+    @Test
+    void testCheckPassword_WrongHash() {
+        String password = "mySecretPassword";
+        String wrongHash = userService.hashPassword("otherPassword");
+
+        boolean result = userService.checkPassword(password, wrongHash);
+
+        assertFalse(result);
     }
 
-    protected void assertFalse(boolean condition, String message) {
-        if (condition) {
-            throw new AssertionError("FAIL: " + message);
-        }
+    @Test
+    void testCheckPassword_NullPassword() {
+        String hash = userService.hashPassword("password");
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            userService.checkPassword(null, hash);
+        });
     }
 
-    protected void assertEquals(Object expected, Object actual, String message) {
-        if (!java.util.Objects.equals(expected, actual)) {
-            throw new AssertionError("FAIL: " + message + " - Expected: " + expected + ", Actual: " + actual);
-        }
+    @Test
+    void testCheckPassword_NullHash() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            userService.checkPassword("password", null);
+        });
     }
 
-    protected void assertNotNull(Object obj, String message) {
-        if (obj == null) {
-            throw new AssertionError("FAIL: " + message);
+    @Test
+    void testMakeUserAdmin() {
+        User user = createUser(1L, "user", "password", UserRole.USER);
+
+        user.makeUserAdmin();
+
+        assertEquals(UserRole.ADMIN, user.getUserRole());
+    }
+
+
+    private User createUser(Long id, String username, String passwordHash, UserRole role) {
+        User user = new User(username, passwordHash);
+        user.setId(id);
+        if (role == UserRole.ADMIN) {
+            user.makeUserAdmin();
         }
+        return user;
     }
 }

@@ -34,7 +34,7 @@ public interface ProductService {
      * @param description новое описание товара
      * @return true если товар успешно обновлен, false если товар не найден
      */
-    boolean updateProduct(long id, String name, String category, String brand, Double price, String description);
+    Product updateProduct(long id, String name, String category, String brand, Double price, String description);
 
     /**
      * Удаляет товар по идентификатору.

@@ -28,12 +28,12 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public boolean updateProduct(long id, String name, String category, String brand, Double price, String description) {
-        boolean isUpdated = productRepository.update(id, name, category, brand, price, description);
-        if (isUpdated) {
+    public Product updateProduct(long id, String name, String category, String brand, Double price, String description) {
+        Product product = productRepository.update(id, name, category, brand, price, description);
+        if (product != null) {
             queryCache.invalidateAll();
         }
-        return isUpdated;
+        return product;
     }
 
     @Override

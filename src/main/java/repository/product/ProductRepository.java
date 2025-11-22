@@ -34,9 +34,9 @@ public interface ProductRepository {
      * @param brand новый бренд
      * @param price новая цена
      * @param description новое описание
-     * @return true если товар был обновлен, false если не найден
+     * @return Product
      */
-    boolean update(long id, String name, String category, String brand, Double price, String description);
+    Product update(long id, String name, String category, String brand, Double price, String description);
 
     /**
      * Находит товар по ID.

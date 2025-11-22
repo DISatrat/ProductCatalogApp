@@ -71,7 +71,7 @@ public class ProductController {
      * @return true если товар успешно обновлен, false если товар не найден
      * @throws IllegalArgumentException если id отрицательный или price отрицательный
      */
-    public boolean updateProduct(String username, long id, String name, String category, String brand, Double price, String description) {
+    public Product updateProduct(String username, long id, String name, String category, String brand, Double price, String description) {
         if (id < 0) {
             throw new IllegalArgumentException("Product ID cannot be negative");
         }
@@ -79,8 +79,8 @@ public class ProductController {
             throw new IllegalArgumentException("Price cannot be negative");
         }
 
-        boolean result = productService.updateProduct(id, name, category, brand, price, description);
-        if (result) {
+        Product result = productService.updateProduct(id, name, category, brand, price, description);
+        if (result == null) {
             auditService.record(username, "UPDATE_PRODUCT", "id=" + id);
         }
         return result;

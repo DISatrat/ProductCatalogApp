@@ -1,211 +1,313 @@
 package test.main.repository;
 
+import exception.EntityNotFoundException;
+import exception.ProductRepositoryException;
 import model.Product;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import repository.product.ProductRepository;
 import repository.product.ProductRepositoryImpl;
-import test.TestBase;
+import util.SQLConstants;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
-public class ProductRepositoryTest extends TestBase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-    private ProductRepository repository;
+@ExtendWith(MockitoExtension.class)
+class ProductRepositoryTest {
 
-    public static void main(String[] args) {
-        try {
-            ProductRepositoryTest test = new ProductRepositoryTest();
-            test.runAllTests();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    @Mock
+    private Connection connection;
+
+    @Mock
+    private PreparedStatement preparedStatement;
+
+    @Mock
+    private ResultSet resultSet;
+
+    @Mock
+    private ResultSet generatedKeys;
+
+    private ProductRepository productRepository;
+
+    @BeforeEach
+    void setUp() {
+        productRepository = new ProductRepositoryImpl();
     }
 
-    public void runAllTests() throws Exception {
-        setUp();
+    @Test
+    void testCreate_ShouldInsertProductAndReturnWithGeneratedId() throws SQLException {
+        String name = "Test Product";
+        String category = "Electronics";
+        String brand = "TestBrand";
+        double price = 99.99;
+        String description = "Test description";
+        Long userId = 1L;
 
-        testCreateProduct();
-        testFindById();
-        testFindAll();
-        testUpdateProduct();
-        testUpdatePartial();
-        testDeleteProduct();
-        testSearch();
-        testGetCount();
+        when(connection.prepareStatement(SQLConstants.Product.INSERT, Statement.RETURN_GENERATED_KEYS))
+                .thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(1);
+        when(preparedStatement.getGeneratedKeys()).thenReturn(generatedKeys);
+        when(generatedKeys.next()).thenReturn(true);
+        when(generatedKeys.getLong(1)).thenReturn(123L);
 
-        tearDown();
-        System.out.println("All ProductRepository tests passed!");
+        when(connection.prepareStatement(SQLConstants.Product.SELECT_BY_ID)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getLong("id")).thenReturn(123L);
+        when(resultSet.getString("name")).thenReturn(name);
+        when(resultSet.getString("category")).thenReturn(category);
+        when(resultSet.getString("brand")).thenReturn(brand);
+        when(resultSet.getDouble("price")).thenReturn(price);
+        when(resultSet.getString("description")).thenReturn(description);
+        when(resultSet.getTimestamp("created_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
+        when(resultSet.getTimestamp("updated_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
+
+        Product product = productRepository.create(name, category, brand, price, description, userId);
+
+        assertNotNull(product);
+        assertEquals(123L, product.getId());
+        assertEquals(name, product.getName());
+        assertEquals(category, product.getCategory());
+        assertEquals(brand, product.getBrand());
+        assertEquals(price, product.getPrice(), 0.001);
+
+        verify(preparedStatement).setString(1, name);
+        verify(preparedStatement).setString(2, category);
+        verify(preparedStatement).setString(3, brand);
+        verify(preparedStatement).setDouble(4, price);
+        verify(preparedStatement).setString(5, description);
+        verify(preparedStatement).setLong(6, userId);
+        verify(preparedStatement).executeUpdate();
+        verify(generatedKeys).next();
+        verify(generatedKeys).getLong(1);
     }
 
-    private void setUp() throws Exception {
-        TestBase.setUpAll();
-        repository = new ProductRepositoryImpl(connection);
-        clearProducts();
+    @Test
+    void testCreate_ShouldThrowExceptionWhenNoRowsAffected() throws SQLException {
+        when(connection.prepareStatement(SQLConstants.Product.INSERT, Statement.RETURN_GENERATED_KEYS))
+                .thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(0);
+
+        assertThrows(ProductRepositoryException.class, () -> {
+            productRepository.create("Test", "Category", "Brand", 10.0, "Desc", 1L);
+        });
     }
 
-    private void tearDown() throws Exception {
-        TestBase.tearDownAll();
+    @Test
+    void testCreate_ShouldThrowExceptionWhenNoGeneratedKey() throws SQLException {
+        when(connection.prepareStatement(SQLConstants.Product.INSERT, Statement.RETURN_GENERATED_KEYS))
+                .thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(1);
+        when(preparedStatement.getGeneratedKeys()).thenReturn(generatedKeys);
+        when(generatedKeys.next()).thenReturn(false);
+
+        assertThrows(ProductRepositoryException.class, () -> {
+            productRepository.create("Test", "Category", "Brand", 10.0, "Desc", 1L);
+        });
     }
 
-    private void testCreateProduct() {
-        System.out.println("Running testCreateProduct...");
+    @Test
+    void testFindById_ExistingProduct_ShouldReturnProduct() throws SQLException {
+        Long productId = 1L;
+        when(connection.prepareStatement(SQLConstants.Product.SELECT_BY_ID)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getLong("id")).thenReturn(productId);
+        when(resultSet.getString("name")).thenReturn("Test Product");
+        when(resultSet.getString("category")).thenReturn("Electronics");
+        when(resultSet.getString("brand")).thenReturn("Brand");
+        when(resultSet.getDouble("price")).thenReturn(99.99);
+        when(resultSet.getString("description")).thenReturn("Description");
+        when(resultSet.getTimestamp("created_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
+        when(resultSet.getTimestamp("updated_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
 
-        Product product = repository.create("Test Product", "Electronics", "TestBrand", 99.99, "Test description", testUserId);
+        Optional<Product> result = productRepository.findById(productId);
 
-        assertNotNull(product, "Created product should not be null");
-        assertEquals("Test Product", product.getName(), "Name should match");
-        assertEquals("Electronics", product.getCategory(), "Category should match");
-        assertEquals(99.99, product.getPrice(), 0.001, "Price should match");
-
-        Optional<Product> found = repository.findById(product.getId());
-        assertTrue(found.isPresent(), "Created product should be findable");
-
-        System.out.println("testCreateProduct PASSED");
+        assertTrue(result.isPresent());
+        assertEquals(productId, result.get().getId());
+        verify(preparedStatement).setLong(1, productId);
+        verify(preparedStatement).executeQuery();
     }
 
-    private void testFindById() {
-        System.out.println("Running testFindById...");
+    @Test
+    void testFindById_NonExistentProduct_ShouldReturnEmpty() throws SQLException {
+        long productId = 999L;
+        when(connection.prepareStatement(SQLConstants.Product.SELECT_BY_ID)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(false);
 
-        Product product = repository.create("Find Test", "Category", "Brand", 50.0, "Desc", testUserId);
-        Optional<Product> found = repository.findById(product.getId());
+        Optional<Product> result = productRepository.findById(productId);
 
-        assertTrue(found.isPresent(), "Product should be found by ID");
-        assertEquals(product.getId(), found.get().getId(), "IDs should match");
-
-        Optional<Product> notFound = repository.findById(999999L);
-        assertFalse(notFound.isPresent(), "Non-existent ID should return empty");
-
-        System.out.println("testFindById PASSED");
+        assertFalse(result.isPresent());
+        verify(preparedStatement).setLong(1, productId);
+        verify(preparedStatement).executeQuery();
     }
 
-    private void testFindAll() {
-        System.out.println("Running testFindAll...");
+    @Test
+    void testUpdate_ShouldExecuteUpdateAndReturnProduct() throws SQLException {
+        Long productId = 1L;
+        String name = "Updated Name";
+        String category = "Updated Category";
+        String brand = "Updated Brand";
+        Double price = 20.0;
+        String description = "Updated Description";
 
-        repository.create("Product 1", "Cat1", "Brand1", 10.0, "Desc1", testUserId);
-        repository.create("Product 2", "Cat2", "Brand2", 20.0, "Desc2", testUserId);
+        when(connection.prepareStatement(SQLConstants.Product.UPDATE)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(1);
 
-        List<Product> products = repository.findAll();
-        assertTrue(products.size() >= 2, "Should find all products");
+        when(connection.prepareStatement(SQLConstants.Product.SELECT_BY_ID)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getLong("id")).thenReturn(productId);
+        when(resultSet.getString("name")).thenReturn(name);
+        when(resultSet.getString("category")).thenReturn(category);
+        when(resultSet.getString("brand")).thenReturn(brand);
+        when(resultSet.getDouble("price")).thenReturn(price);
+        when(resultSet.getString("description")).thenReturn(description);
+        when(resultSet.getTimestamp("created_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
+        when(resultSet.getTimestamp("updated_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
 
-        System.out.println("testFindAll PASSED - found " + products.size() + " products");
+        Product result = productRepository.update(productId, name, category, brand, price, description);
+
+        assertNotNull(result);
+        assertEquals(productId, result.getId());
+        verify(preparedStatement).setString(1, name);
+        verify(preparedStatement).setString(2, category);
+        verify(preparedStatement).setString(3, brand);
+        verify(preparedStatement).setDouble(4, price);
+        verify(preparedStatement).setString(5, description);
+        verify(preparedStatement).setLong(6, productId);
+        verify(preparedStatement).executeUpdate();
     }
 
-    private void testUpdateProduct() {
-        System.out.println("Running testUpdateProduct...");
+    @Test
+    void testUpdate_ShouldThrowExceptionWhenProductNotFound() throws SQLException {
+        Long productId = 999L;
+        when(connection.prepareStatement(SQLConstants.Product.UPDATE)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(0);
 
-        Product product = repository.create("Old Name", "Old Cat", "Old Brand", 10.0, "Old Desc", testUserId);
-        boolean updated = repository.update(product.getId(), "New Name", "New Cat", "New Brand", 20.0, "New Desc");
-
-        assertTrue(updated, "Update should return true");
-
-        Optional<Product> updatedProduct = repository.findById(product.getId());
-        assertTrue(updatedProduct.isPresent(), "Updated product should exist");
-        assertEquals("New Name", updatedProduct.get().getName(), "Name should be updated");
-        assertEquals("New Cat", updatedProduct.get().getCategory(), "Category should be updated");
-        assertEquals(20.0, updatedProduct.get().getPrice(), 0.001, "Price should be updated");
-
-        System.out.println("testUpdateProduct PASSED");
+        assertThrows(EntityNotFoundException.class, () -> {
+            productRepository.update(productId, "Name", "Category", "Brand", 10.0, "Description");
+        });
     }
 
-    private void testUpdatePartial() {
-        System.out.println("Running testUpdatePartial...");
+    @Test
+    void testDelete_ExistingProduct_ShouldReturnTrue() throws SQLException {
+        long productId = 1L;
+        when(connection.prepareStatement(SQLConstants.Product.DELETE)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(1);
 
-        Product product = repository.create("Partial Test", "Category", "Brand", 10.0, "Desc", testUserId);
-        boolean updated = repository.updatePartial(product.getId(), "New Name", null, null, null, null);
+        boolean result = productRepository.delete(productId);
 
-        assertTrue(updated, "Partial update should return true");
-
-        Optional<Product> updatedProduct = repository.findById(product.getId());
-        assertTrue(updatedProduct.isPresent(), "Updated product should exist");
-        assertEquals("New Name", updatedProduct.get().getName(), "Name should be updated");
-        assertEquals("Category", updatedProduct.get().getCategory(), "Category should remain unchanged");
-        assertEquals(10.0, updatedProduct.get().getPrice(), 0.001, "Price should remain unchanged");
-
-        System.out.println("testUpdatePartial PASSED");
+        assertTrue(result);
+        verify(preparedStatement).setLong(1, productId);
+        verify(preparedStatement).executeUpdate();
     }
 
-    private void testDeleteProduct() {
-        System.out.println("Running testDeleteProduct...");
+    @Test
+    void testDelete_NonExistentProduct_ShouldReturnFalse() throws SQLException {
+        Long productId = 999L;
+        when(connection.prepareStatement(SQLConstants.Product.DELETE)).thenReturn(preparedStatement);
+        when(preparedStatement.executeUpdate()).thenReturn(0);
 
-        Product product = repository.create("To Delete", "Category", "Brand", 10.0, "Desc", testUserId);
-        boolean deleted = repository.delete(product.getId());
+        boolean result = productRepository.delete(productId);
 
-        assertTrue(deleted, "Delete should return true");
-
-        Optional<Product> found = repository.findById(product.getId());
-        assertFalse(found.isPresent(), "Deleted product should not exist");
-
-        System.out.println("testDeleteProduct PASSED");
+        assertFalse(result);
+        verify(preparedStatement).setLong(1, productId);
+        verify(preparedStatement).executeUpdate();
     }
 
-    private void testSearch() {
-        System.out.println("Running testSearch...");
+    @Test
+    void testSearch_WithParameters_ShouldBuildDynamicQuery() throws SQLException {
+        String nameSubstring = "test";
+        String category = "Electronics";
+        String brand = "Brand";
+        Double minPrice = 10.0;
+        Double maxPrice = 100.0;
 
-        repository.create("iPhone 15", "Electronics", "Apple", 999.99, "Smartphone", testUserId);
-        repository.create("MacBook Pro", "Electronics", "Apple", 1999.99, "Laptop", testUserId);
-        repository.create("Galaxy S24", "Electronics", "Samsung", 899.99, "Smartphone", testUserId);
-        repository.create("ThinkPad", "Electronics", "Lenovo", 1299.99, "Laptop", testUserId);
+        when(connection.prepareStatement(anyString())).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(false);
 
-        List<Product> appleProducts = repository.search("iphone", null, null, null, null);
-        assertTrue(appleProducts.size() >= 1, "Should find products by name substring");
+        List<Product> result = productRepository.search(nameSubstring, category, brand, minPrice, maxPrice);
 
-        List<Product> electronics = repository.search(null, "Electronics", null, null, null);
-        assertTrue(electronics.size() >= 4, "Should find products by category");
-
-        List<Product> appleBrand = repository.search(null, null, "Apple", null, null);
-        assertTrue(appleBrand.size() >= 2, "Should find products by brand");
-
-        List<Product> cheapProducts = repository.search(null, null, null, 0.0, 1000.0);
-        assertTrue(cheapProducts.size() >= 2, "Should find products by price range");
-
-        List<Product> appleLaptops = repository.search(null, "Electronics", "Apple", 1500.0, 2500.0);
-        assertTrue(appleLaptops.size() >= 1, "Should find products by combined criteria");
-
-        System.out.println("testSearch PASSED");
+        assertNotNull(result);
+        verify(connection).prepareStatement(contains("LOWER(name) LIKE LOWER(?)"));
+        verify(connection).prepareStatement(contains("LOWER(category) = LOWER(?)"));
+        verify(connection).prepareStatement(contains("LOWER(brand) = LOWER(?)"));
+        verify(connection).prepareStatement(contains("price >= ?"));
+        verify(connection).prepareStatement(contains("price <= ?"));
+        verify(preparedStatement).setString(anyInt(), eq("%test%"));
+        verify(preparedStatement).setString(anyInt(), eq("Electronics"));
+        verify(preparedStatement).setString(anyInt(), eq("Brand"));
+        verify(preparedStatement).setDouble(anyInt(), eq(10.0));
+        verify(preparedStatement).setDouble(anyInt(), eq(100.0));
     }
 
-    private void testGetCount() {
-        System.out.println("Running testGetCount...");
+    @Test
+    void testGetCount_ShouldReturnCountFromDatabase() throws SQLException {
+        when(connection.prepareStatement(SQLConstants.Product.COUNT)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getInt(1)).thenReturn(42);
 
-        int initialCount = repository.getCount();
+        int result = productRepository.getCount();
 
-        repository.create("Count Test 1", "Category", "Brand", 10.0, "Desc", testUserId);
-        repository.create("Count Test 2", "Category", "Brand", 20.0, "Desc", testUserId);
-
-        int finalCount = repository.getCount();
-        assertTrue(finalCount >= initialCount + 2, "Count should increase after creating products");
-
-        System.out.println("testGetCount PASSED - count: " + finalCount);
+        assertEquals(42, result);
+        verify(preparedStatement).executeQuery();
+        verify(resultSet).next();
+        verify(resultSet).getInt(1);
     }
 
-    // Assertion methods
-    public void assertTrue(boolean condition, String message) {
-        if (!condition) {
-            throw new AssertionError("FAIL: " + message);
-        }
+    @Test
+    void testFindAll_ShouldReturnAllProducts() throws SQLException {
+        when(connection.prepareStatement(SQLConstants.Product.SELECT_ALL)).thenReturn(preparedStatement);
+        when(preparedStatement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true, true, false);
+        when(resultSet.getLong("id")).thenReturn(1L, 2L);
+        when(resultSet.getString("name")).thenReturn("Product1", "Product2");
+        when(resultSet.getString("category")).thenReturn("Cat1", "Cat2");
+        when(resultSet.getString("brand")).thenReturn("Brand1", "Brand2");
+        when(resultSet.getDouble("price")).thenReturn(10.0, 20.0);
+        when(resultSet.getString("description")).thenReturn("Desc1", "Desc2");
+        when(resultSet.getTimestamp("created_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
+        when(resultSet.getTimestamp("updated_at")).thenReturn(new Timestamp(System.currentTimeMillis()));
+
+        List<Product> result = productRepository.findAll();
+
+        assertEquals(2, result.size());
+        verify(preparedStatement).executeQuery();
+        verify(resultSet, times(3)).next();
     }
 
-    public void assertFalse(boolean condition, String message) {
-        if (condition) {
-            throw new AssertionError("FAIL: " + message);
-        }
-    }
+    @Test
+    void testSQLException_ShouldWrapInRepositoryException() throws SQLException {
+        when(connection.prepareStatement(anyString())).thenThrow(new SQLException("Database error"));
 
-    public void assertEquals(Object expected, Object actual, String message) {
-        if (!java.util.Objects.equals(expected, actual)) {
-            throw new AssertionError("FAIL: " + message + " - Expected: " + expected + ", Actual: " + actual);
-        }
-    }
-
-    private void assertEquals(double expected, double actual, double delta, String message) {
-        if (Math.abs(expected - actual) > delta) {
-            throw new AssertionError("FAIL: " + message + " - Expected: " + expected + ", Actual: " + actual);
-        }
-    }
-
-    public void assertNotNull(Object obj, String message) {
-        if (obj == null) {
-            throw new AssertionError("FAIL: " + message);
-        }
+        assertThrows(ProductRepositoryException.class, () -> {
+            productRepository.findById(1L);
+        });
     }
 }

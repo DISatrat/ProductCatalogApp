@@ -1,7 +1,11 @@
 import cache.QueryCache;
 import config.Config;
 import config.DatabaseMigrator;
-import controller.*;
+import controller.AuditController;
+import controller.AuthController;
+import controller.MetricsController;
+import controller.ProductController;
+import controller.UserController;
 import factory.AuditFactory;
 import factory.ProductFactory;
 import factory.UserFactory;
@@ -17,10 +21,7 @@ import service.product.ProductServiceImpl;
 import service.user.UserService;
 import service.user.UserServiceImpl;
 import ui.ConsoleUI;
-import util.ConnectionHolder;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
+import util.ConnectionPoolManager;
 
 /**
  * Главный класс приложения "Маркетплейс".
@@ -36,34 +37,28 @@ public class ProductCatalogApp {
      *
      */
     public static void main(String[] args) {
-        ConnectionHolder connectionHolder = new ConnectionHolder();
-
         try {
             Config config = new Config("dev.yaml");
 
-            Connection connection = DriverManager.getConnection(
-                    config.getDbUrl(),
-                    config.getDbUsername(),
-                    config.getDbPassword()
-            );
-            connectionHolder.setConnection(connection);
+            ConnectionPoolManager.initialize(config);
 
             DatabaseMigrator migrator = new DatabaseMigrator();
             migrator.runMigrations(config);
 
-            ProductRepositoryImpl productRepo = ProductFactory.createProductRepository(connection);
-            UserRepositoryImpl userRepo = UserFactory.createUserRepository(connection);
-            AuditRepositoryImpl auditRepo = AuditFactory.createAuditRepository(connection);
+            ProductRepositoryImpl productRepo = ProductFactory.createProductRepository();
+            UserRepositoryImpl userRepo = UserFactory.createUserRepository();
+            AuditRepositoryImpl auditRepo = AuditFactory.createAuditRepository();
+
             ConsoleUI ui = getConsoleUI(productRepo, userRepo, auditRepo);
 
-            Runtime.getRuntime().addShutdownHook(new Thread(connectionHolder::close));
+            Runtime.getRuntime().addShutdownHook(new Thread(ConnectionPoolManager::close));
 
             ui.start();
 
         } catch (Exception e) {
             System.err.println("Application startup failed: " + e.getMessage());
             e.printStackTrace();
-            connectionHolder.close();
+            ConnectionPoolManager.close();
             System.exit(1);
         }
     }

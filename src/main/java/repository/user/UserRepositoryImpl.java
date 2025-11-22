@@ -1,8 +1,15 @@
 package repository.user;
 
+import exception.UserRepositoryException;
 import model.User;
+import util.ConnectionPoolManager;
+import util.SQLConstants;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -11,21 +18,19 @@ import java.util.Optional;
  * Реализация репозитория пользователей
  */
 public class UserRepositoryImpl implements UserRepository {
-    private final Connection connection;
 
-    public UserRepositoryImpl(Connection connection) {
-        this.connection = connection;
+    public UserRepositoryImpl() {
     }
 
     @Override
     public Optional<User> findByUsername(String username) {
         if (username == null) {
-            throw new NullPointerException("Username cannot be null");
+            throw new IllegalArgumentException("Username cannot be null");
         }
 
-        String sql = "SELECT id, username, password_hash, user_role FROM app_schema.users WHERE username = ?";
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.User.SELECT_BY_USERNAME)) {
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
 
@@ -38,44 +43,51 @@ public class UserRepositoryImpl implements UserRepository {
             return Optional.empty();
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while finding user", e);
+            throw new UserRepositoryException("Database error while finding user by username: " + username, e);
         }
     }
 
     @Override
     public void addUser(User user) {
         if (user == null) {
-            throw new NullPointerException("User cannot be null");
+            throw new IllegalArgumentException("User cannot be null");
         }
 
-        String sql = "INSERT INTO app_schema.users (username, password_hash, user_role) VALUES (?, ?, ?)";
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.User.INSERT, Statement.RETURN_GENERATED_KEYS)) {
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, user.getUsername());
             stmt.setString(2, user.getPasswordHash());
             stmt.setString(3, user.getUserRole().name());
 
             int affectedRows = stmt.executeUpdate();
 
-            if (affectedRows > 0) {
-                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        setUserId(user, generatedKeys.getLong(1));
-                    }
+            if (affectedRows == 0) {
+                throw new UserRepositoryException("Failed to create user, no rows affected");
+            }
+
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    setUserId(user, generatedKeys.getLong(1));
+                } else {
+                    throw new UserRepositoryException("Failed to retrieve generated user ID");
                 }
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while adding user", e);
+            if (e.getSQLState().equals("23505")) {
+                throw new UserRepositoryException("User with username '" + user.getUsername() + "' already exists", e);
+            }
+            throw new UserRepositoryException("Database error while adding user: " + user.getUsername(), e);
         }
     }
 
     @Override
     public List<User> findAll() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT id, username, password_hash, user_role FROM app_schema.users";
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
+        try (Connection connection = ConnectionPoolManager.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(SQLConstants.User.SELECT_ALL);
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
@@ -86,7 +98,7 @@ public class UserRepositoryImpl implements UserRepository {
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Database error while finding all users", e);
+            throw new UserRepositoryException("Database error while retrieving all users", e);
         }
 
         return users;
@@ -97,8 +109,11 @@ public class UserRepositoryImpl implements UserRepository {
             java.lang.reflect.Field idField = User.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(user, id);
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot set user ID", e);
+
+        } catch (NoSuchFieldException e) {
+            throw new UserRepositoryException("User class does not have 'id' field", e);
+        } catch (IllegalAccessException e) {
+            throw new UserRepositoryException("Cannot access 'id' field in User class", e);
         }
     }
 
@@ -107,8 +122,11 @@ public class UserRepositoryImpl implements UserRepository {
             if ("ADMIN".equals(role)) {
                 user.makeUserAdmin();
             }
+
+        } catch (SecurityException e) {
+            throw new UserRepositoryException("Security exception while setting user role: " + role, e);
         } catch (Exception e) {
-            throw new RuntimeException("Cannot set user role", e);
+            throw new UserRepositoryException("Unexpected error while setting user role: " + role, e);
         }
     }
 }

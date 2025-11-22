@@ -2,7 +2,6 @@ package factory;
 
 import repository.audit.AuditRepositoryImpl;
 
-import java.sql.Connection;
 
 /**
  * Фабрика для создания и управления аудитом.
@@ -12,10 +11,9 @@ public class AuditFactory {
     /**
      * Создает и инициализирует репозиторий товаров для работы с БД.
      *
-     * @param connection соединение с БД
      * @return инициализированный репозиторий товаров
      */
-    public static AuditRepositoryImpl createAuditRepository(Connection connection) {
-        return new AuditRepositoryImpl(connection);
+    public static AuditRepositoryImpl createAuditRepository() {
+        return new AuditRepositoryImpl();
     }
 }

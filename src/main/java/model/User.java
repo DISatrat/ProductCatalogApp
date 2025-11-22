@@ -48,6 +48,11 @@ public class User implements Serializable {
         this.userRole = UserRole.USER;
         this.createdAt = new Date();
     }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public Long getId() {return id;}
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }

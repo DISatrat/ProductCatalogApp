@@ -2,210 +2,240 @@ package test.main.service;
 
 import cache.QueryCache;
 import model.Product;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import repository.product.ProductRepository;
-import repository.product.ProductRepositoryImpl;
 import service.product.ProductService;
 import service.product.ProductServiceImpl;
-import test.TestBase;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-public class ProductServiceTest extends TestBase {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.Mockito.*;
 
-    private ProductService productService;
+@ExtendWith(MockitoExtension.class)
+class ProductServiceTest {
+
+    @Mock
     private ProductRepository productRepository;
+
+    @Mock
     private QueryCache queryCache;
 
-    public static void main(String[] args) {
-        try {
-            ProductServiceTest test = new ProductServiceTest();
-            test.runAllTests();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    private ProductService productService;
 
-    public void runAllTests() throws Exception {
-        setUp();
-
-        testCreateProduct();
-        testGetProductById();
-        testUpdateProduct();
-        testDeleteProduct();
-        testSearchProducts();
-        testGetAllProducts();
-        testGetTotalProductsCount();
-        testCacheInvalidation();
-
-        tearDown();
-        System.out.println("All ProductService tests passed!");
-    }
-
-    private void setUp() throws Exception {
-        TestBase.setUpAll();
-        productRepository = new ProductRepositoryImpl(connection);
-        queryCache = new QueryCache(10);
+    @BeforeEach
+    void setUp() {
         productService = new ProductServiceImpl(productRepository, queryCache);
-        clearProducts();
     }
 
-    private void tearDown() throws Exception {
-        TestBase.tearDownAll();
+    @Test
+    void testCreateProduct() {
+        String name = "Test Product";
+        String category = "Electronics";
+        String brand = "TestBrand";
+        double price = 99.99;
+        String description = "Test description";
+        Long userId = 1L;
+
+        Product expectedProduct = createProduct(1L, name, category, brand, price, description);
+        when(productRepository.create(name, category, brand, price, description, userId))
+                .thenReturn(expectedProduct);
+        doNothing().when(queryCache).invalidateAll();
+
+        Product result = productService.createProduct(name, category, brand, price, description, userId);
+
+        assertNotNull(result);
+        assertEquals(name, result.getName());
+        assertEquals(category, result.getCategory());
+        assertEquals(brand, result.getBrand());
+        assertEquals(price, result.getPrice(), 0.001);
+        assertEquals(description, result.getDescription());
+
+        verify(productRepository, times(1)).create(name, category, brand, price, description, userId);
+        verify(queryCache, times(1)).invalidateAll();
     }
 
-    private void testCreateProduct() {
-        System.out.println("Running testCreateProduct...");
+    @Test
+    void testGetProductById_Found() {
+        Long productId = 1L;
+        Product expectedProduct = createProduct(productId, "Test Product", "Electronics", "Brand", 99.99, "Description");
+        when(productRepository.findById(productId)).thenReturn(Optional.of(expectedProduct));
 
-        Product product = productService.createProduct("Test Product", "Electronics", "TestBrand", 99.99, "Test description", testUserId);
+        Optional<Product> result = productService.getProductById(productId);
 
-        assertNotNull(product, "Created product should not be null");
-        assertEquals("Test Product", product.getName(), "Name should match");
-        assertEquals("Electronics", product.getCategory(), "Category should match");
-        assertEquals(99.99, product.getPrice(), 0.001, "Price should match");
-
-        Optional<Product> found = productService.getProductById(product.getId());
-        assertTrue(found.isPresent(), "Created product should be findable");
-
-        System.out.println("testCreateProduct PASSED");
+        assertTrue(result.isPresent());
+        assertEquals(expectedProduct, result.get());
+        verify(productRepository, times(1)).findById(productId);
     }
 
-    private void testGetProductById() {
-        System.out.println("Running testGetProductById...");
+    @Test
+    void testGetProductById_NotFound() {
+        Long productId = 999L;
+        when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
-        Product product = productService.createProduct("Find Test", "Category", "Brand", 50.0, "Desc", testUserId);
-        Optional<Product> found = productService.getProductById(product.getId());
+        Optional<Product> result = productService.getProductById(productId);
 
-        assertTrue(found.isPresent(), "Product should be found by ID");
-        assertEquals(product.getId(), found.get().getId(), "IDs should match");
-
-        Optional<Product> notFound = productService.getProductById(999999L);
-        assertFalse(notFound.isPresent(), "Non-existent ID should return empty");
-
-        System.out.println("testGetProductById PASSED");
+        assertFalse(result.isPresent());
+        verify(productRepository, times(1)).findById(productId);
     }
 
-    private void testUpdateProduct() {
-        System.out.println("Running testUpdateProduct...");
+    @Test
+    void testUpdateProduct() {
+        Long productId = 1L;
+        String newName = "New Name";
+        String newCategory = "New Category";
+        String newBrand = "New Brand";
+        Double newPrice = 20.0;
+        String newDescription = "New Description";
 
-        Product product = productService.createProduct("Old Name", "Old Cat", "Old Brand", 10.0, "Old Desc", testUserId);
-        boolean updated = productService.updateProduct(product.getId(), "New Name", "New Cat", "New Brand", 20.0, "New Desc");
+        Product updatedProduct = createProduct(productId, newName, newCategory, newBrand, newPrice, newDescription);
+        when(productRepository.update(productId, newName, newCategory, newBrand, newPrice, newDescription))
+                .thenReturn(updatedProduct);
+        doNothing().when(queryCache).invalidateAll();
 
-        assertTrue(updated, "Update should return true");
+        Product result = productService.updateProduct(productId, newName, newCategory, newBrand, newPrice, newDescription);
 
-        Optional<Product> updatedProduct = productService.getProductById(product.getId());
-        assertTrue(updatedProduct.isPresent(), "Updated product should exist");
-        assertEquals("New Name", updatedProduct.get().getName(), "Name should be updated");
-        assertEquals("New Cat", updatedProduct.get().getCategory(), "Category should be updated");
-        assertEquals(20.0, updatedProduct.get().getPrice(), 0.001, "Price should be updated");
+        assertNotNull(result);
+        assertEquals(newName, result.getName());
+        assertEquals(newCategory, result.getCategory());
+        assertEquals(newBrand, result.getBrand());
+        assertEquals(newPrice, result.getPrice(), 0.001);
 
-        System.out.println("testUpdateProduct PASSED");
+        verify(productRepository, times(1)).update(productId, newName, newCategory, newBrand, newPrice, newDescription);
+        verify(queryCache, times(1)).invalidateAll();
     }
 
-    private void testDeleteProduct() {
-        System.out.println("Running testDeleteProduct...");
+    @Test
+    void testDeleteProduct() {
+        Long productId = 1L;
+        when(productRepository.delete(productId)).thenReturn(true);
+        doNothing().when(queryCache).invalidateAll();
 
-        Product product = productService.createProduct("To Delete", "Category", "Brand", 10.0, "Desc", testUserId);
-        boolean deleted = productService.deleteProduct(product.getId());
+        boolean result = productService.deleteProduct(productId);
 
-        assertTrue(deleted, "Delete should return true");
-
-        Optional<Product> found = productService.getProductById(product.getId());
-        assertFalse(found.isPresent(), "Deleted product should not exist");
-
-        System.out.println("testDeleteProduct PASSED");
+        assertTrue(result);
+        verify(productRepository, times(1)).delete(productId);
+        verify(queryCache, times(1)).invalidateAll();
     }
 
-    private void testSearchProducts() {
-        System.out.println("Running testSearchProducts...");
+    @Test
+    void testDeleteProduct_NotFound() {
+        Long productId = 999L;
+        when(productRepository.delete(productId)).thenReturn(false);
 
-        productService.createProduct("iPhone 15", "Electronics", "Apple", 999.99, "Smartphone", testUserId);
-        productService.createProduct("MacBook Pro", "Electronics", "Apple", 1999.99, "Laptop", testUserId);
-        productService.createProduct("Galaxy S24", "Electronics", "Samsung", 899.99, "Smartphone", testUserId);
+        boolean result = productService.deleteProduct(productId);
 
-        List<Product> appleProducts = productService.searchProducts("iphone", null, null, null, null);
-        assertTrue(appleProducts.size() >= 1, "Should find products by name substring");
-
-        List<Product> electronics = productService.searchProducts(null, "Electronics", null, null, null);
-        assertTrue(electronics.size() >= 3, "Should find products by category");
-
-        List<Product> appleBrand = productService.searchProducts(null, null, "Apple", null, null);
-        assertTrue(appleBrand.size() >= 2, "Should find products by brand");
-
-        List<Product> cheapProducts = productService.searchProducts(null, null, null, 0.0, 1000.0);
-        assertTrue(cheapProducts.size() >= 2, "Should find products by price range");
-
-        System.out.println("testSearchProducts PASSED");
+        assertFalse(result);
+        verify(productRepository, times(1)).delete(productId);
+        verify(queryCache, never()).invalidateAll();
     }
 
-    private void testGetAllProducts() {
-        System.out.println("Running testGetAllProducts...");
+    @Test
+    void testSearchProducts_WithCacheHit() {
+        String nameSubstring = "iphone";
+        String category = "Electronics";
+        String brand = "Apple";
+        Double minPrice = 0.0;
+        Double maxPrice = 1000.0;
 
-        productService.createProduct("Product 1", "Cat1", "Brand1", 10.0, "Desc1", testUserId);
-        productService.createProduct("Product 2", "Cat2", "Brand2", 20.0, "Desc2", testUserId);
+        String cacheKey = "search:iphone:Electronics:Apple:0.0:1000.0";
+        List<Product> cachedProducts = Arrays.asList(
+                createProduct(1L, "iPhone 15", "Electronics", "Apple", 999.99, "Smartphone")
+        );
 
-        List<Product> products = productService.getAllProducts();
-        assertTrue(products.size() >= 2, "Should find all products");
+        when(queryCache.get(cacheKey)).thenReturn(cachedProducts);
 
-        System.out.println("testGetAllProducts PASSED - found " + products.size() + " products");
+        List<Product> result = productService.searchProducts(nameSubstring, category, brand, minPrice, maxPrice);
+
+
+        assertEquals(cachedProducts, result);
+        verify(queryCache, times(1)).get(cacheKey);
+        verify(productRepository, never()).search(any(), any(), any(), any(), any());
+        verify(queryCache, never()).put(any(), any());
     }
 
-    private void testGetTotalProductsCount() {
-        System.out.println("Running testGetTotalProductsCount...");
+    @Test
+    void testSearchProducts_WithCacheMiss() {
+        String nameSubstring = "iphone";
+        String category = "Electronics";
+        String brand = "Apple";
+        Double minPrice = 0.0;
+        Double maxPrice = 1000.0;
 
-        int initialCount = productService.getTotalProductsCount();
+        String cacheKey = "search:iphone:Electronics:Apple:0.0:1000.0";
+        List<Product> dbProducts = Arrays.asList(
+                createProduct(1L, "iPhone 15", "Electronics", "Apple", 999.99, "Smartphone")
+        );
 
-        productService.createProduct("Count Test 1", "Category", "Brand", 10.0, "Desc", testUserId);
-        productService.createProduct("Count Test 2", "Category", "Brand", 20.0, "Desc", testUserId);
+        when(queryCache.get(cacheKey)).thenReturn(null);
+        when(productRepository.search(nameSubstring, category, brand, minPrice, maxPrice)).thenReturn(dbProducts);
+        doNothing().when(queryCache).put(cacheKey, dbProducts);
 
-        int finalCount = productService.getTotalProductsCount();
-        assertTrue(finalCount >= initialCount + 2, "Count should increase after creating products");
+        List<Product> result = productService.searchProducts(nameSubstring, category, brand, minPrice, maxPrice);
 
-        System.out.println("testGetTotalProductsCount PASSED - count: " + finalCount);
+        assertEquals(dbProducts, result);
+        verify(queryCache, times(1)).get(cacheKey);
+        verify(productRepository, times(1)).search(nameSubstring, category, brand, minPrice, maxPrice);
+        verify(queryCache, times(1)).put(cacheKey, dbProducts);
     }
 
-    private void testCacheInvalidation() {
-        System.out.println("Running testCacheInvalidation...");
+    @Test
+    void testGetAllProducts() {
+        List<Product> expectedProducts = Arrays.asList(
+                createProduct(1L, "Product 1", "Cat1", "Brand1", 10.0, "Desc1"),
+                createProduct(2L, "Product 2", "Cat2", "Brand2", 20.0, "Desc2")
+        );
+        when(productRepository.findAll()).thenReturn(expectedProducts);
 
-        productService.createProduct("Cache Test", "Electronics", "Brand", 100.0, "Desc", testUserId);
-        List<Product> firstSearch = productService.searchProducts("cache", null, null, null, null);
+        List<Product> result = productService.getAllProducts();
 
-        productService.createProduct("Cache Test 2", "Electronics", "Brand", 200.0, "Desc", testUserId);
-
-        List<Product> secondSearch = productService.searchProducts("cache", null, null, null, null);
-        assertTrue(secondSearch.size() >= 2, "Should find both products after cache invalidation");
-
-        System.out.println("testCacheInvalidation PASSED");
+        assertEquals(expectedProducts, result);
+        verify(productRepository, times(1)).findAll();
     }
 
-    // Assertion methods
-    protected void assertTrue(boolean condition, String message) {
-        if (!condition) {
-            throw new AssertionError("FAIL: " + message);
-        }
+    @Test
+    void testGetTotalProductsCount() {
+        int expectedCount = 5;
+        when(productRepository.getCount()).thenReturn(expectedCount);
+
+        int result = productService.getTotalProductsCount();
+
+        assertEquals(expectedCount, result);
+        verify(productRepository, times(1)).getCount();
     }
 
-    protected void assertFalse(boolean condition, String message) {
-        if (condition) {
-            throw new AssertionError("FAIL: " + message);
-        }
+    @Test
+    void testCacheInvalidationOnCreate() {
+        Product newProduct = createProduct(1L, "New Product", "Electronics", "Brand", 100.0, "Desc");
+        when(productRepository.create(any(), any(), any(), anyDouble(), any(), any())).thenReturn(newProduct);
+        doNothing().when(queryCache).invalidateAll();
+
+        productService.createProduct("New Product", "Electronics", "Brand", 100.0, "Desc", 1L);
+
+        verify(queryCache, times(1)).invalidateAll();
     }
 
-    protected void assertEquals(Object expected, Object actual, String message) {
-        if (!java.util.Objects.equals(expected, actual)) {
-            throw new AssertionError("FAIL: " + message + " - Expected: " + expected + ", Actual: " + actual);
-        }
+    @Test
+    void testCacheInvalidationOnUpdate() {
+        Product updatedProduct = createProduct(1L, "Updated Product", "Electronics", "Brand", 150.0, "Desc");
+        when(productRepository.update(any(), any(), any(), any(), any(), any())).thenReturn(updatedProduct);
+        doNothing().when(queryCache).invalidateAll();
+
+        productService.updateProduct(1L, "Updated Product", "Electronics", "Brand", 150.0, "Desc");
+
+        verify(queryCache, times(1)).invalidateAll();
     }
 
-    protected void assertEquals(double expected, double actual, double delta, String message) {
-        if (Math.abs(expected - actual) > delta) {
-            throw new AssertionError("FAIL: " + message + " - Expected: " + expected + ", Actual: " + actual);
-        }
-    }
-
-    protected void assertNotNull(Object obj, String message) {
-        if (obj == null) {
-            throw new AssertionError("FAIL: " + message);
-        }
+    private Product createProduct(Long id, String name, String category, String brand, double price, String description) {
+        Product product = new Product(id, name, category, brand, price, description);
+        return product;
     }
 }

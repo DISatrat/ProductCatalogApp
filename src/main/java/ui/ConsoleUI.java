@@ -209,8 +209,8 @@ public class ConsoleUI {
         System.out.print("Новое описание (Enter чтобы оставить): ");
         String description = readOptionalString();
 
-        boolean success = productController.updateProduct(currentUser.getUsername(), id, name, category, brand, price, description);
-        System.out.println(success ? "Обновлено" : "Ошибка обновления");
+        Product updatedProduct = productController.updateProduct(currentUser.getUsername(), id, name, category, brand, price, description);
+        System.out.println(updatedProduct!=null ? "Обновлено" : "Ошибка обновления");
     }
 
     /**
