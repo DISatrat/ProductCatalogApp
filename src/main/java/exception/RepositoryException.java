@@ -1,0 +1,14 @@
+package exception;
+
+/**
+ * Базовое исключение для репозиториев
+ */
+public class RepositoryException extends RuntimeException {
+    public RepositoryException(String message) {
+        super(message);
+    }
+
+    public RepositoryException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
