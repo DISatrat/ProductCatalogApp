@@ -1,3 +1,5 @@
-[Домашняя работа №1](src/main/java/readme/HM1.md)
+[Домашняя работа №1](src/readme/HM1.md)
 
-[Домашняя работа №2](src/main/java/readme/HM2.md)
+[Домашняя работа №2](src/readme/HM2.md)
+
+[Домашняя работа №3](src/readme/HM3.md)
