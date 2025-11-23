@@ -1,6 +1,8 @@
 package model;
 
-import java.io.Serial;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 import java.io.Serializable;
 import java.util.Date;
 
@@ -9,12 +11,12 @@ import java.util.Date;
  * Содержит основную информацию о товаре и временные метки создания/обновления.
  * Класс поддерживает сериализацию для данного хранения.
  */
+@Getter
+@AllArgsConstructor
 public class Product implements Serializable {
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     /** Уникальный идентификатор товара */
-    private final long id;
+    private long id;
 
     /** Название товара */
     private String name;
@@ -71,15 +73,6 @@ public class Product implements Serializable {
         this.updatedAt = new Date();
     }
 
-    public long getId() { return id; }
-    public String getName() { return name; }
-    public String getCategory() { return category; }
-    public String getBrand() { return brand; }
-    public double getPrice() { return price; }
-    public String getDescription() { return description; }
-    public Date getCreatedAt() { return createdAt; }
-    public Date getUpdatedAt() { return updatedAt; }
-    public User getUser() { return user; }
 
     public void setName(String name) { this.name = name; touch(); }
     public void setCategory(String category) { this.category = category; touch(); }

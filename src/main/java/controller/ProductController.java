@@ -1,5 +1,8 @@
 package controller;
 
+import aspects.annotaion.Audited;
+import dto.ProductResponseDTO;
+import mapper.ProductMapper;
 import model.Product;
 import service.product.ProductService;
 import service.audit.AuditService;
@@ -15,21 +18,20 @@ public class ProductController {
     private final ProductService productService;
 
     /** Сервис для записи действий в журнал аудита */
-    private final AuditService auditService;
+    private final ProductMapper productMapper;
 
     /**
      * Конструктор контроллера
      *
      * @param productService сервис для операций с товарами
-     * @param auditService сервис для записи действий аудита
      * @throws NullPointerException если любой из параметров равен null
      */
-    public ProductController(ProductService productService, AuditService auditService) {
-        if (productService == null || auditService == null) {
-            throw new NullPointerException("ProductService and AuditService cannot be null");
+    public ProductController(ProductService productService) {
+        if (productService == null) {
+            throw new NullPointerException("ProductService cannot be null");
         }
         this.productService = productService;
-        this.auditService = auditService;
+        productMapper = ProductMapper.INSTANCE;
     }
 
     /**
@@ -45,7 +47,8 @@ public class ProductController {
      * @throws NullPointerException если любой из строковых параметров равен null
      * @throws IllegalArgumentException если price отрицательный
      */
-    public Product createProduct(String username, String name, String category, String brand, double price, String description, Long userId) {
+    @Audited(action = "CREATE_PRODUCT", details = "Create new product")
+    public ProductResponseDTO createProduct(String username, String name, String category, String brand, double price, String description, Long userId) {
         if (name == null || category == null || brand == null || description == null) {
             throw new NullPointerException("Product fields cannot be null");
         }
@@ -54,8 +57,7 @@ public class ProductController {
         }
 
         Product product = productService.createProduct(name, category, brand, price, description, userId);
-        auditService.record(username, "ADD_PRODUCT", product.getName());
-        return product;
+        return productMapper.toDTO(product);
     }
 
     /**
@@ -71,7 +73,8 @@ public class ProductController {
      * @return true если товар успешно обновлен, false если товар не найден
      * @throws IllegalArgumentException если id отрицательный или price отрицательный
      */
-    public Product updateProduct(String username, long id, String name, String category, String brand, Double price, String description) {
+    @Audited(action = "UPDATE_PRODUCT")
+    public ProductResponseDTO updateProduct(String username, long id, String name, String category, String brand, Double price, String description) {
         if (id < 0) {
             throw new IllegalArgumentException("Product ID cannot be negative");
         }
@@ -80,10 +83,10 @@ public class ProductController {
         }
 
         Product result = productService.updateProduct(id, name, category, brand, price, description);
-        if (result == null) {
-            auditService.record(username, "UPDATE_PRODUCT", "id=" + id);
-        }
-        return result;
+//        if (result == null) {
+//            auditService.record(username, "UPDATE_PRODUCT", "id=" + id);
+//        }
+        return productMapper.toDTO(result);
     }
 
     /**
@@ -94,16 +97,16 @@ public class ProductController {
      * @return true если товар успешно удален, false если товар не найден
      * @throws IllegalArgumentException если id отрицательный
      */
+    @Audited(action = "DELETE_PRODUCT", details = "Delete product by ID")
     public boolean deleteProduct(String username, long id) {
         if (id < 0) {
             throw new IllegalArgumentException("Product ID cannot be negative");
         }
 
-        boolean result = productService.deleteProduct(id);
-        if (result) {
-            auditService.record(username, "DELETE_PRODUCT", "id=" + id);
-        }
-        return result;
+        //        if (result) {
+//            auditService.record(username, "DELETE_PRODUCT", "id=" + id);
+//        }
+        return productService.deleteProduct(id);
     }
 
     /**
@@ -113,11 +116,20 @@ public class ProductController {
      * @return Optional с товаром если найден, или пустой Optional если не найден
      * @throws IllegalArgumentException если id отрицательный
      */
-    public Optional<Product> getProductById(long id) {
+    @Audited(action = "PRODUCT_BY_ID")
+    public Optional<ProductResponseDTO> getProductById(long id) {
         if (id < 0) {
             throw new IllegalArgumentException("Product ID cannot be negative");
         }
-        return productService.getProductById(id);
+        Optional<Product> productOpt = productService.getProductById(id);
+        Product product = productOpt.orElse(null);
+        System.out.println("=== DEBUG ===");
+        System.out.println("Product: " + product);
+        System.out.println("User in product: " + product.getUser());
+        System.out.println("User ID: " + (product.getUser() != null ? product.getUser().getId() : "null"));
+        System.out.println("=== END DEBUG ===");
+
+        return productOpt.map(productMapper::toDTO);
     }
 
     /**
@@ -133,7 +145,8 @@ public class ProductController {
      * @throws IllegalArgumentException если priceMin или priceMax отрицательные,
      *         или если priceMin > priceMax
      */
-    public List<Product> searchProducts(String username, String nameSubstr, String category, String brand, Double priceMin, Double priceMax) {
+    @Audited(action = "SEARCH_PRODUCTS")
+    public List<ProductResponseDTO> searchProducts(String username, String nameSubstr, String category, String brand, Double priceMin, Double priceMax) {
         if (priceMin != null && priceMin < 0) {
             throw new IllegalArgumentException("Minimum price cannot be negative");
         }
@@ -145,8 +158,8 @@ public class ProductController {
         }
 
         List<Product> results = productService.searchProducts(nameSubstr, category, brand, priceMin, priceMax);
-        auditService.record(username, "SEARCH", "found " + results.size() + " products");
-        return results;
+//        auditService.record(username, "SEARCH", "found " + results.size() + " products");
+        return productMapper.toDTOList(results);
     }
 
     /**
@@ -154,15 +167,17 @@ public class ProductController {
      *
      * @return список всех товаров (может быть пустым, но не null)
      */
-    public List<Product> getAllProducts() {
-        return productService.getAllProducts();
+    @Audited(action = "ALL_PRODUCTS")
+    public List<ProductResponseDTO> getAllProducts() {
+        List<Product> products = productService.getAllProducts();
+        return productMapper.toDTOList(products);
     }
-
     /**
      * Возвращает общее количество товаров в системе.
      *
      * @return количество товаров
      */
+    @Audited(action = "PRODUCTS_COUNT")
     public int getTotalProductsCount() {
         return productService.getTotalProductsCount();
     }

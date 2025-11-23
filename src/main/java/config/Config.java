@@ -57,4 +57,15 @@ public class Config {
         Map<String, Object> liquibaseConfig = (Map<String, Object>) migrationsConfig.get("liquibase");
         return (String) liquibaseConfig.get("schema");
     }
+    public int getServerPort() {
+        Object serverObj = config.get("server");
+        if (serverObj instanceof Map) {
+            Map<String, Object> serverConfig = (Map<String, Object>) serverObj;
+            Object portObj = serverConfig.get("port");
+            if (portObj instanceof Integer) {
+                return (int) portObj;
+            }
+        }
+        return 8080;
+    }
 }

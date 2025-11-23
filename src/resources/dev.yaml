@@ -12,3 +12,6 @@ migrations:
   contexts: "dev"
   liquibase:
     schema: "liquibase_schema"
+
+server:
+  port: 8080

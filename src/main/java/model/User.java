@@ -1,5 +1,6 @@
 package model;
 
+import lombok.*;
 import model.enums.UserRole;
 
 import java.io.Serializable;
@@ -10,6 +11,11 @@ import java.util.Date;
  * Содержит информацию для аутентификации и авторизации пользователя.
  * Класс поддерживает сериализацию для данного хранения.
  */
+@Builder
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class User implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -49,15 +55,6 @@ public class User implements Serializable {
         this.createdAt = new Date();
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getId() {return id;}
-    public String getUsername() { return username; }
-    public String getPasswordHash() { return passwordHash; }
-    public UserRole getUserRole() { return userRole; }
-    public Date getCreatedAt() { return createdAt; }
     /**
      * Повышает права пользователя до роли ADMIN.
      * Используется для предоставления административных привилегий.
