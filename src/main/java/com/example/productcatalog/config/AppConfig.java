@@ -91,7 +91,6 @@ public class AppConfig implements WebMvcConfigurer {
 
     @Override
     public void configurePathMatch(PathMatchConfigurer configurer) {
-        // Устанавливаем context path из конфигурации
         configurer.addPathPrefix(contextPath, c -> true);
     }
 }
