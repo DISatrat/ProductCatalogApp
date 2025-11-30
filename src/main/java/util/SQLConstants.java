@@ -27,10 +27,10 @@ public final class SQLConstants {
         public static final String INSERT = "INSERT INTO " + TABLE + " (name, category, brand, price, description, user_id) VALUES (?, ?, ?, ?, ?, ?)";
         public static final String UPDATE = "UPDATE " + TABLE + " SET name = ?, category = ?, brand = ?, price = ?, description = ?, updated_at = NOW() WHERE id = ?";
         public static final String DELETE = "DELETE FROM " + TABLE + " WHERE id = ?";
-        public static final String SELECT_BY_ID = "SELECT id, name, category, brand, price, description, created_at, updated_at FROM " + TABLE + " WHERE id = ?";
+        public static final String SELECT_BY_ID = "SELECT id, name, category, brand, price, description, user_id, created_at, updated_at FROM " + TABLE + " WHERE id = ?";
         public static final String SELECT_ALL = "SELECT id, name, category, brand, price, description, created_at, updated_at FROM " + TABLE + " ORDER BY id";
         public static final String COUNT = "SELECT COUNT(*) FROM " + TABLE;
-        public static final String COLUMNS = "id, name, category, brand, price, description, created_at, updated_at";
+        public static final String COLUMNS = "id, name, category, brand, price, description, user_id, created_at, updated_at";
         public static final String BASE_SEARCH = "SELECT " + COLUMNS + " FROM " + TABLE + " WHERE 1=1";
     }
 

@@ -3,6 +3,7 @@ package repository.product;
 import exception.EntityNotFoundException;
 import exception.ProductRepositoryException;
 import model.Product;
+import model.User;
 import util.ConnectionPoolManager;
 import util.SQLConstants;
 
@@ -100,6 +101,13 @@ public class ProductRepositoryImpl implements ProductRepository {
                         rs.getDouble("price"),
                         rs.getString("description")
                 );
+                Long userId = rs.getLong("user_id");
+                if (!rs.wasNull()) {
+                    User user = User.builder()
+                            .id(userId)
+                            .build();
+                    product.setUser(user);
+                }
                 setProductTimestamps(product, rs);
                 return Optional.of(product);
             }
@@ -247,6 +255,11 @@ public class ProductRepositoryImpl implements ProductRepository {
                         rs.getDouble("price"),
                         rs.getString("description")
                 );
+                Long userId = rs.getLong("user_id");
+                if (!rs.wasNull()) {
+                    User user = User.builder().id(userId).build();
+                    product.setUser(user);
+                }
                 setProductTimestamps(product, rs);
                 products.add(product);
             }

@@ -48,4 +48,12 @@ public interface UserService {
      * @return true если пароль соответствует хешу, false в противном случае
      */
     boolean checkPassword(String pass, String hash);
+
+    /**
+     * Проверяет существование пользователя по имени.
+     *
+     * @param username имя пользователя для проверки
+     * @return true если пользователь существует, false в противном случае
+     */
+    boolean existsByUsername(String username);
 }
