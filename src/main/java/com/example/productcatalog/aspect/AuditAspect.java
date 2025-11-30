@@ -1,6 +1,6 @@
 package com.example.productcatalog.aspect;
 
-import com.example.productcatalog.service.AuditService;
+import com.example.productcatalog.service.audit.AuditService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;

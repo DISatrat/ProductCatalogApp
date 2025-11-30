@@ -1,13 +1,14 @@
 package com.example.productcatalog.controller;
 
 import com.example.productcatalog.dto.ApiResponse;
-import com.example.productcatalog.dto.MetricsResponseDTO;
-import com.example.productcatalog.service.MetricsService;
+import com.example.productcatalog.dto.metric.MetricsResponseDTO;
+import com.example.productcatalog.service.metric.MetricsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -19,7 +20,7 @@ import java.util.Map;
  * </p>
  */
 @Slf4j
-@RestController
+@Controller
 @RequestMapping("/metrics")
 @RequiredArgsConstructor
 @Tag(name = "Metrics", description = "Конечные точки метрик приложения")

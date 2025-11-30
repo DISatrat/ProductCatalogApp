@@ -1,20 +1,23 @@
 package com.example.productcatalog.controller;
 
-import com.example.productcatalog.dto.LoginRequestDTO;
-import com.example.productcatalog.dto.RegisterRequestDTO;
+import com.example.productcatalog.dto.user.LoginRequestDTO;
+import com.example.productcatalog.dto.user.RegisterRequestDTO;
 import com.example.productcatalog.mapper.UserMapper;
 import com.example.productcatalog.model.User;
 import com.example.productcatalog.model.enums.UserRole;
-import com.example.productcatalog.service.AuditService;
-import com.example.productcatalog.service.UserService;
+import com.example.productcatalog.service.audit.AuditService;
+import com.example.productcatalog.service.user.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Optional;
 
@@ -27,23 +30,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * WebMVC тесты для AuthController.
  */
-@WebMvcTest(AuthController.class)
+@ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private UserService userService;
 
-    @MockBean
+    @Mock
     private AuditService auditService;
 
-    @MockBean
+    @Mock
     private UserMapper userMapper;
+
+    @InjectMocks
+    private AuthController authController;
+
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        objectMapper = new ObjectMapper();
+        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
+    }
 
     @Test
     @DisplayName("Должен успешно зарегистрировать нового пользователя")

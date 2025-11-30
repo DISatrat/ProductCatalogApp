@@ -1,10 +1,13 @@
 package com.example.productcatalog.controller;
 
 import com.example.productcatalog.dto.*;
+import com.example.productcatalog.dto.user.LoginRequestDTO;
+import com.example.productcatalog.dto.user.RegisterRequestDTO;
+import com.example.productcatalog.dto.user.UserResponseDTO;
 import com.example.productcatalog.mapper.UserMapper;
 import com.example.productcatalog.model.User;
-import com.example.productcatalog.service.AuditService;
-import com.example.productcatalog.service.UserService;
+import com.example.productcatalog.service.audit.AuditService;
+import com.example.productcatalog.service.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -22,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
  * </p>
  */
 @Slf4j
-@RestController
+@Controller
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Конечные точки аутентификации и регистрации пользователя")

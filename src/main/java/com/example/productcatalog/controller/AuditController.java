@@ -1,10 +1,10 @@
 package com.example.productcatalog.controller;
 
 import com.example.productcatalog.dto.ApiResponse;
-import com.example.productcatalog.dto.AuditEntryDTO;
+import com.example.productcatalog.dto.audit.AuditEntryDTO;
 import com.example.productcatalog.mapper.AuditMapper;
 import com.example.productcatalog.model.AuditEntry;
-import com.example.productcatalog.service.AuditService;
+import com.example.productcatalog.service.audit.AuditService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,7 +25,7 @@ import java.util.List;
  * </p>
  */
 @Slf4j
-@RestController
+@Controller
 @RequestMapping("/audit-logs")
 @RequiredArgsConstructor
 @Tag(name = "Audit", description = "Конечные точки журнала аудита (только для администраторов)")

@@ -1,6 +1,6 @@
 package com.example.productcatalog.mapper;
 
-import com.example.productcatalog.dto.UserResponseDTO;
+import com.example.productcatalog.dto.user.UserResponseDTO;
 import com.example.productcatalog.model.User;
 import com.example.productcatalog.model.enums.UserRole;
 import org.mapstruct.Mapper;

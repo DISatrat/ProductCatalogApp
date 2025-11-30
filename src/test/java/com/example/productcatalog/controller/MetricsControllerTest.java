@@ -1,12 +1,15 @@
 package com.example.productcatalog.controller;
 
-import com.example.productcatalog.service.MetricsService;
+import com.example.productcatalog.service.metric.MetricsService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,14 +18,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * WebMVC тесты для MetricsController.
  */
-@WebMvcTest(MetricsController.class)
+@ExtendWith(MockitoExtension.class)
 class MetricsControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @Mock
     private MetricsService metricsService;
+
+    @InjectMocks
+    private MetricsController metricsController;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(metricsController).build();
+    }
 
     @Test
     @DisplayName("Должен вернуть все метрики")

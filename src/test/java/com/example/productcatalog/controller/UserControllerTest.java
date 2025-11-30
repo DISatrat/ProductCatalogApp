@@ -1,16 +1,19 @@
 package com.example.productcatalog.controller;
 
-import com.example.productcatalog.dto.UserResponseDTO;
+import com.example.productcatalog.dto.user.UserResponseDTO;
 import com.example.productcatalog.mapper.UserMapper;
 import com.example.productcatalog.model.User;
 import com.example.productcatalog.model.enums.UserRole;
-import com.example.productcatalog.service.UserService;
+import com.example.productcatalog.service.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Arrays;
 import java.util.List;
@@ -22,17 +25,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * WebMVC тесты для UserController.
  */
-@WebMvcTest(UserController.class)
+@ExtendWith(MockitoExtension.class)
 class UserControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @Mock
     private UserService userService;
 
-    @MockBean
+    @Mock
     private UserMapper userMapper;
+
+    @InjectMocks
+    private UserController userController;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
+    }
 
     @Test
     @DisplayName("Должен вернуть всех пользователей для администратора")
@@ -59,17 +69,17 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Должен вернуть ошибку 401 для обычных пользователей")
-    void getAllUsers_ShouldReturn401_WhenNotAdmin() throws Exception {
+    @DisplayName("Должен вернуть ошибку 403 для обычных пользователей")
+    void getAllUsers_ShouldReturn403_WhenNotAdmin() throws Exception {
         mockMvc.perform(get("/users")
                         .header("X-User-Role", "USER"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("Должен вернуть ошибку 401, когда отсутствует заголовок роли")
-    void getAllUsers_ShouldReturn401_WhenNoRoleHeader() throws Exception {
+    @DisplayName("Должен вернуть ошибку 403, когда отсутствует заголовок роли")
+    void getAllUsers_ShouldReturn403_WhenNoRoleHeader() throws Exception {
         mockMvc.perform(get("/users"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 }

@@ -1,19 +1,22 @@
 package com.example.productcatalog.controller;
 
-import com.example.productcatalog.dto.ProductRequestDTO;
-import com.example.productcatalog.dto.ProductResponseDTO;
-import com.example.productcatalog.dto.ProductUpdateDTO;
+import com.example.productcatalog.dto.product.ProductRequestDTO;
+import com.example.productcatalog.dto.product.ProductResponseDTO;
+import com.example.productcatalog.dto.product.ProductUpdateDTO;
 import com.example.productcatalog.mapper.ProductMapper;
 import com.example.productcatalog.model.Product;
-import com.example.productcatalog.service.ProductService;
+import com.example.productcatalog.service.product.ProductService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -29,20 +32,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * WebMVC тесты для ProductController.
  */
-@WebMvcTest(ProductController.class)
+@ExtendWith(MockitoExtension.class)
 class ProductControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @Mock
     private ProductService productService;
 
-    @MockBean
+    @Mock
     private ProductMapper productMapper;
+
+    @InjectMocks
+    private ProductController productController;
+
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        objectMapper = new ObjectMapper();
+        mockMvc = MockMvcBuilders.standaloneSetup(productController).build();
+    }
 
     @Test
     @DisplayName("Должен вернуть все продукты")

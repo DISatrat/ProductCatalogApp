@@ -1,6 +1,6 @@
 package com.example.productcatalog.mapper;
 
-import com.example.productcatalog.dto.AuditEntryDTO;
+import com.example.productcatalog.dto.audit.AuditEntryDTO;
 import com.example.productcatalog.model.AuditEntry;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

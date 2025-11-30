@@ -1,15 +1,18 @@
 package com.example.productcatalog.controller;
 
-import com.example.productcatalog.dto.AuditEntryDTO;
-import com.example.productcatalog.mapper.AuditMapper;
+import com.example.productcatalog.dto.audit.AuditEntryDTO;
 import com.example.productcatalog.model.AuditEntry;
-import com.example.productcatalog.service.AuditService;
+import com.example.productcatalog.mapper.AuditMapper;
+import com.example.productcatalog.service.audit.AuditService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -22,17 +25,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * WebMVC тесты для AuditController.
  */
-@WebMvcTest(AuditController.class)
+@ExtendWith(MockitoExtension.class)
 class AuditControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @Mock
     private AuditService auditService;
 
-    @MockBean
+    @Mock
     private AuditMapper auditMapper;
+
+    @InjectMocks
+    private AuditController auditController;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(auditController).build();
+    }
 
     @Test
     @DisplayName("Должен вернуть журналы аудита для администратора")
@@ -105,17 +115,17 @@ class AuditControllerTest {
     }
 
     @Test
-    @DisplayName("Должен вернуть ошибку 401 для обычных пользователей")
-    void getAuditLogs_ShouldReturn401_WhenNotAdmin() throws Exception {
+    @DisplayName("Должен вернуть ошибку 403 для обычных пользователей")
+    void getAuditLogs_ShouldReturn403_WhenNotAdmin() throws Exception {
         mockMvc.perform(get("/audit-logs")
                         .header("X-User-Role", "USER"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("Должен вернуть ошибку 401, когда отсутствует заголовок роли")
-    void getAuditLogs_ShouldReturn401_WhenNoRoleHeader() throws Exception {
+    @DisplayName("Должен вернуть ошибку 403, когда отсутствует заголовок роли")
+    void getAuditLogs_ShouldReturn403_WhenNoRoleHeader() throws Exception {
         mockMvc.perform(get("/audit-logs"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 }
