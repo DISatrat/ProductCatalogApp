@@ -1,5 +1,7 @@
 package controller;
 
+import dto.UserResponseDTO;
+import mapper.UserMapper;
 import model.User;
 import model.enums.UserRole;
 import service.user.UserService;
@@ -13,6 +15,7 @@ import java.util.List;
 public class UserController {
     /** Сервис для операций с пользователями */
     private final UserService userService;
+    private final UserMapper userMapper;
 
     /**
      * Конструктор контроллера пользователей
@@ -25,6 +28,7 @@ public class UserController {
             throw new NullPointerException("UserService cannot be null");
         }
         this.userService = userService;
+        userMapper = UserMapper.INSTANCE;
     }
 
     /**
@@ -36,7 +40,7 @@ public class UserController {
      * @throws SecurityException если текущий пользователь не имеет роли ADMIN
      * @throws NullPointerException если currentUser равен null
      */
-    public List<User> getUsers(User currentUser) {
+    public List<UserResponseDTO> getUsers(User currentUser) {
         if (currentUser == null) {
             throw new NullPointerException("Current user cannot be null");
         }
@@ -45,6 +49,8 @@ public class UserController {
             throw new SecurityException("Доступ запрещен! Требуется роль ADMIN.");
         }
 
-        return userService.getUsers();
+        List<User> users = userService.getUsers();
+
+        return userMapper.toDTOList(users);
     }
 }

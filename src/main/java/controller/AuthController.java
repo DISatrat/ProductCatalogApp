@@ -1,5 +1,7 @@
 package controller;
 
+import dto.UserResponseDTO;
+import mapper.UserMapper;
 import model.User;
 import service.user.UserService;
 import service.audit.AuditService;
@@ -12,6 +14,7 @@ import java.util.Optional;
 public class AuthController {
     /** Сервис для работы с пользователями */
     private final UserService userService;
+    private final UserMapper userMapper;
 
     /** Сервис для записи действий в журнал аудита */
     private final AuditService auditService;
@@ -27,6 +30,7 @@ public class AuthController {
         if (userService == null || auditService == null) {
             throw new NullPointerException("UserService and AuditService cannot be null");
         }
+        this.userMapper = UserMapper.INSTANCE;
         this.userService = userService;
         this.auditService = auditService;
     }
@@ -41,18 +45,18 @@ public class AuthController {
      *         или пустой Optional если аутентификация не удалась
      * @throws NullPointerException если username или password равны null
      */
-    public Optional<User> login(String username, String password) {
+    public UserResponseDTO login(String username, String password) {
         if (username == null || password == null) {
-            throw new NullPointerException("Username and password cannot be null");
+            throw new IllegalArgumentException("Username and password cannot be null");
         }
 
         Optional<User> userOpt = userService.findByUsername(username);
         if (userOpt.isPresent() && userService.checkPassword(password, userOpt.get().getPasswordHash())) {
             User user = userOpt.get();
-            auditService.record(user.getUsername(), "LOGIN", "success");
-            return Optional.of(user);
+            auditService.record(user.getUsername(), "LOGIN", "User logged in successfully");
+            return userMapper.toDTO(user);
         }
-        return Optional.empty();
+        throw new SecurityException("Invalid credentials");
     }
 
     /**
@@ -64,32 +68,34 @@ public class AuthController {
      * @return true если регистрация прошла успешно, false если пользователь уже существует
      * @throws NullPointerException если username или password равны null
      */
-    public boolean register(String username, String password) {
+    public UserResponseDTO register(String username, String password) {
         if (username == null || password == null) {
-            throw new NullPointerException("Username and password cannot be null");
+            throw new IllegalArgumentException("Username and password cannot be null");
         }
 
         if (userService.findByUsername(username).isPresent()) {
-            return false;
+            throw new IllegalArgumentException("Username already exists");
         }
+
         String hash = userService.hashPassword(password);
         User user = new User(username, hash);
         userService.addUser(user);
-        auditService.record(username, "REGISTER", "created user");
-        return true;
+        auditService.record(username, "REGISTER", "User registered successfully");
+
+        return userMapper.toDTO(user);
     }
 
     /**
      * Выполняет выход пользователя из системы.
      * Записывает событие выхода в журнал аудита.
      *
-     * @param user пользователь, выполняющий выход
+     * @param username пользователь, выполняющий выход
      * @throws NullPointerException если user равен null
      */
-    public void logout(User user) {
-        if (user == null) {
-            throw new NullPointerException("User cannot be null");
+    public void logout(String username) {
+        if (username == null) {
+            throw new IllegalArgumentException("Username cannot be null");
         }
-        auditService.record(user.getUsername(), "LOGOUT", "user logged out");
+        auditService.record(username, "LOGOUT", "User logged out");
     }
 }

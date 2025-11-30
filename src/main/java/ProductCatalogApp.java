@@ -1,90 +1,135 @@
-import cache.QueryCache;
+import aspects.AuditAspect;
+import aspects.PerformanceLoggingAspect;
 import config.Config;
 import config.DatabaseMigrator;
-import controller.AuditController;
-import controller.AuthController;
-import controller.MetricsController;
-import controller.ProductController;
-import controller.UserController;
-import factory.AuditFactory;
-import factory.ProductFactory;
-import factory.UserFactory;
-import repository.audit.AuditRepositoryImpl;
-import repository.product.ProductRepositoryImpl;
-import repository.user.UserRepositoryImpl;
-import service.audit.AuditService;
-import service.audit.AuditServiceImpl;
-import service.metrics.MetricsService;
-import service.metrics.MetricsServiceImpl;
-import service.product.ProductService;
-import service.product.ProductServiceImpl;
-import service.user.UserService;
-import service.user.UserServiceImpl;
-import ui.ConsoleUI;
+import filter.AuthenticationFilter;
+import filter.AuthorizationFilter;
+import org.apache.catalina.Context;
+import org.apache.catalina.startup.Tomcat;
+import org.apache.tomcat.util.descriptor.web.FilterDef;
+import org.apache.tomcat.util.descriptor.web.FilterMap;
+import listener.ApplicationContextListener;
+import servlets.*;
+import util.ApplicationContext;
 import util.ConnectionPoolManager;
 
-/**
- * Главный класс приложения "Маркетплейс".
- * Координирует инициализацию всех компонентов системы и запуск пользовательского интерфейса.
- * Обеспечивает корректное сохранение данных при завершении работы приложения.
- */
+import java.io.File;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public class ProductCatalogApp {
 
-    /**
-     * Точка входа в приложение.
-     * Инициализирует все компоненты системы, запускает пользовательский интерфейс
-     * и регистрирует обработчик для сохранения данных при завершении работы.
-     *
-     */
+    private static final Logger logger = Logger.getLogger(ProductCatalogApp.class.getName());
+
+    private static final String CONFIG_FILE = "dev.yaml";
+    private static final String CONTEXT_PATH = "";
+    private static final String SERVLET_AUTH = "authServlet";
+    private static final String SERVLET_PRODUCT = "productServlet";
+    private static final String SERVLET_METRICS = "metricsServlet";
+    private static final String SERVLET_USER = "userServlet";
+    private static final String SERVLET_AUDIT = "auditServlet";
+
     public static void main(String[] args) {
         try {
-            Config config = new Config("dev.yaml");
+            Config config = new Config(CONFIG_FILE);
 
             ConnectionPoolManager.initialize(config);
 
             DatabaseMigrator migrator = new DatabaseMigrator();
             migrator.runMigrations(config);
 
-            ProductRepositoryImpl productRepo = ProductFactory.createProductRepository();
-            UserRepositoryImpl userRepo = UserFactory.createUserRepository();
-            AuditRepositoryImpl auditRepo = AuditFactory.createAuditRepository();
+            ApplicationContext.initialize();
 
-            ConsoleUI ui = getConsoleUI(productRepo, userRepo, auditRepo);
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                ApplicationContext.shutdown();
+                ConnectionPoolManager.close();
+            }));
 
-            Runtime.getRuntime().addShutdownHook(new Thread(ConnectionPoolManager::close));
-
-            ui.start();
+            forceLoadAspects();
+            initAspects();
+            startEmbeddedServer(config);
 
         } catch (Exception e) {
-            System.err.println("Application startup failed: " + e.getMessage());
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Application startup failed: " + e.getMessage(), e);
             ConnectionPoolManager.close();
             System.exit(1);
         }
     }
 
-    /**
-     * Создает и конфигурирует консольный пользовательский интерфейс.
-     * Инициализирует все необходимые сервисы и контроллеры, устанавливает зависимости между ними.
-     *
-     * @param productRepo репозиторий товаров
-     * @param userRepo репозиторий пользователей
-     * @param auditRepo репозиторий аудита
-     * @return сконфигурированный экземпляр консольного интерфейса
-     */
-    private static ConsoleUI getConsoleUI(ProductRepositoryImpl productRepo, UserRepositoryImpl userRepo, AuditRepositoryImpl auditRepo) {
-        AuditService audit = new AuditServiceImpl(auditRepo);
-        MetricsService metricsService = new MetricsServiceImpl();
-        QueryCache cache = new QueryCache(100);
-        ProductService productService = new ProductServiceImpl(productRepo, cache);
-        UserService userService = new UserServiceImpl(userRepo);
+    private static void startEmbeddedServer(Config config) throws Exception {
+        Tomcat tomcat = new Tomcat();
+        tomcat.setPort(config.getServerPort());
+        tomcat.setBaseDir(createTempDir());
 
-        return new ConsoleUI(
-                new AuthController(userService, audit),
-                new ProductController(productService, audit),
-                new UserController(userService),
-                new AuditController(audit),
-                new MetricsController(metricsService)
-        );
+        Context context = tomcat.addContext(CONTEXT_PATH, new File(".").getAbsolutePath());
+
+        addFilters(context);
+
+        Tomcat.addServlet(context, SERVLET_AUTH, new AuthServlet());
+        Tomcat.addServlet(context, SERVLET_PRODUCT, new ProductServlet());
+        Tomcat.addServlet(context, SERVLET_METRICS, new MetricsServlet());
+        Tomcat.addServlet(context, SERVLET_USER, new UserServlet());
+        Tomcat.addServlet(context, SERVLET_AUDIT, new AuditServlet());
+
+        context.addServletMappingDecoded("/api/auth/*", SERVLET_AUTH);
+        context.addServletMappingDecoded("/api/products/*", SERVLET_PRODUCT);
+        context.addServletMappingDecoded("/api/metrics/*", SERVLET_METRICS);
+        context.addServletMappingDecoded("/api/users", SERVLET_USER);
+        context.addServletMappingDecoded("/api/audit-logs", SERVLET_AUDIT);
+
+        logger.info("Starting embedded Tomcat...");
+        tomcat.getConnector();
+        tomcat.start();
+        logger.info("Tomcat started on port " + config.getServerPort());
+        tomcat.getServer().await();
+    }
+
+    private static void addFilters(Context context) {
+        FilterDef authFilterDef = new FilterDef();
+        authFilterDef.setFilterName("authenticationFilter");
+        authFilterDef.setFilterClass(AuthenticationFilter.class.getName());
+        context.addFilterDef(authFilterDef);
+
+        FilterMap authFilterMap = new FilterMap();
+        authFilterMap.setFilterName("authenticationFilter");
+        authFilterMap.addURLPattern("/api/*");
+        context.addFilterMap(authFilterMap);
+
+        FilterDef authzFilterDef = new FilterDef();
+        authzFilterDef.setFilterName("authorizationFilter");
+        authzFilterDef.setFilterClass(AuthorizationFilter.class.getName());
+        context.addFilterDef(authzFilterDef);
+
+        FilterMap authzFilterMap = new FilterMap();
+        authzFilterMap.setFilterName("authorizationFilter");
+        authzFilterMap.addURLPattern("/api/*");
+        context.addFilterMap(authzFilterMap);
+    }
+
+    private static String createTempDir() {
+        String tempDir = System.getProperty("java.io.tmpdir") + "/tomcat-" + System.currentTimeMillis();
+        new File(tempDir).mkdirs();
+        return tempDir;
+    }
+
+    private static void forceLoadAspects() {
+        try {
+            Class.forName("aspects.AuditAspect");
+            Class.forName("aspects.PerformanceLoggingAspect");
+            logger.info("Aspects loaded successfully");
+        } catch (ClassNotFoundException e) {
+            logger.warning("Failed to load aspects: " + e.getMessage());
+        }
+    }
+
+    private static void initAspects() {
+        try {
+            AuditAspect auditAspect = new AuditAspect();
+            PerformanceLoggingAspect performanceAspect = new PerformanceLoggingAspect();
+
+            logger.info("Aspects initialized: AuditAspect=" + auditAspect + ", PerformanceAspect=" + performanceAspect);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to initialize aspects: " + e.getMessage(), e);
+        }
     }
 }

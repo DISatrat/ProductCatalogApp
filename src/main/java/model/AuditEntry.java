@@ -1,5 +1,7 @@
 package model;
 
+import lombok.*;
+
 import java.io.Serializable;
 import java.util.Date;
 
@@ -8,6 +10,12 @@ import java.util.Date;
  * Содержит информацию о времени выполнения действия, пользователе, типе действия и деталях.
  * Класс поддерживает сериализацию для данного хранения.
  */
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AuditEntry implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -52,50 +60,6 @@ public class AuditEntry implements Serializable {
         this.timestamp = new Date();
         this.username = username;
         this.action = action;
-        this.details = details;
-    }
-
-    public AuditEntry() {
-
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Date getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(Date timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getAction() {
-        return action;
-    }
-
-    public void setAction(String action) {
-        this.action = action;
-    }
-
-    public String getDetails() {
-        return details;
-    }
-
-    public void setDetails(String details) {
         this.details = details;
     }
 

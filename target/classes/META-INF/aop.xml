@@ -1,0 +1,11 @@
+<aspectj>
+    <weaver>
+        <include within="controller..*"/>
+        <include within="service..*"/>
+        <include within="aspects..*"/>
+    </weaver>
+    <aspects>
+        <aspect name="aspects.AuditAspect"/>
+        <aspect name="aspects.PerformanceLoggingAspect"/>
+    </aspects>
+</aspectj>

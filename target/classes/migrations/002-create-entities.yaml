@@ -1,0 +1,133 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-insert-admin-user
+      author: dev
+      changes:
+        - insert:
+            schemaName: app_schema
+            tableName: users
+            columns:
+              - column:
+                  name: username
+                  value: "admin"
+              - column:
+                  name: password_hash
+                  value: "49"
+              - column:
+                  name: user_role
+                  value: "ADMIN"
+              - column:
+                  name: created_at
+                  valueComputed: "NOW()"
+
+  - changeSet:
+      id: 002-insert-sample-products
+      author: dev
+      changes:
+        - insert:
+            schemaName: app_schema
+            tableName: products
+            columns:
+              - column:
+                  name: name
+                  value: "iPhone 15 Pro"
+              - column:
+                  name: category
+                  value: "Smartphones"
+              - column:
+                  name: brand
+                  value: "Apple"
+              - column:
+                  name: price
+                  value: "999.99"
+              - column:
+                  name: description
+                  value: "Latest flagship smartphone with advanced camera system"
+              - column:
+                  name: user_id
+                  value: "1"
+              - column:
+                  name: created_at
+                  valueComputed: "NOW()"
+              - column:
+                  name: updated_at
+                  valueComputed: "NOW()"
+
+        - insert:
+            schemaName: app_schema
+            tableName: products
+            columns:
+              - column:
+                  name: name
+                  value: "Galaxy S24"
+              - column:
+                  name: category
+                  value: "Smartphones"
+              - column:
+                  name: brand
+                  value: "Samsung"
+              - column:
+                  name: price
+                  value: "849.99"
+              - column:
+                  name: description
+                  value: "Powerful Android phone with AI features"
+              - column:
+                  name: user_id
+                  value: "1"
+              - column:
+                  name: created_at
+                  valueComputed: "NOW()"
+              - column:
+                  name: updated_at
+                  valueComputed: "NOW()"
+
+        - insert:
+            schemaName: app_schema
+            tableName: products
+            columns:
+              - column:
+                  name: name
+                  value: "MacBook Air M3"
+              - column:
+                  name: category
+                  value: "Laptops"
+              - column:
+                  name: brand
+                  value: "Apple"
+              - column:
+                  name: price
+                  value: "1299.99"
+              - column:
+                  name: description
+                  value: "Lightweight laptop with M3 chip"
+              - column:
+                  name: user_id
+                  value: "1"
+              - column:
+                  name: created_at
+                  valueComputed: "NOW()"
+              - column:
+                  name: updated_at
+                  valueComputed: "NOW()"
+
+  - changeSet:
+      id: 002-insert-sample-audit
+      author: dev
+      changes:
+        - insert:
+            schemaName: app_schema
+            tableName: audit_entries
+            columns:
+              - column:
+                  name: timestamp
+                  valueComputed: "NOW()"
+              - column:
+                  name: username
+                  value: "admin"
+              - column:
+                  name: action
+                  value: "SYSTEM_INIT"
+              - column:
+                  name: details
+                  value: "Database initialized with admin user and sample data"
