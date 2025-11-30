@@ -6,25 +6,30 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import service.audit.AuditService;
-import util.ServiceLocator;
+import util.ApplicationContext;
 
 import java.util.Arrays;
+import java.util.logging.Logger;
 
 @Aspect
 public class AuditAspect {
 
+    private static final Logger logger = Logger.getLogger(AuditAspect.class.getName());
+    private static final String RESULT_SUCCESS = " - SUCCESS";
+    private static final String RESULT_FAILED = " - FAILED: ";
+
     private final AuditService auditService;
 
     public AuditAspect() {
-        this.auditService = ServiceLocator.getAuditService();
+        this.auditService = ApplicationContext.getAuditService();
     }
 
 
     @Around("@annotation(audited)")
     public Object auditMethod(ProceedingJoinPoint joinPoint, Audited audited) throws Throwable {
-        System.out.println("=== AUDIT ASPECT TRIGGERED ===");
-        System.out.println("Method: " + joinPoint.getSignature().getName());
-        System.out.println("Annotation: " + audited.action());
+        logger.info("=== AUDIT ASPECT TRIGGERED ===");
+        logger.info("Method: " + joinPoint.getSignature().getName());
+        logger.info("Annotation: " + audited.action());
 
         String username = extractUsernameFromParameters(joinPoint);
         String action = audited.action();
@@ -33,14 +38,14 @@ public class AuditAspect {
         long startTime = System.currentTimeMillis();
         try {
             Object result = joinPoint.proceed();
-            auditService.record(username, action, details + " - SUCCESS");
+            auditService.record(username, action, details + RESULT_SUCCESS);
             return result;
         } catch (Exception e) {
-            auditService.record(username, action, details + " - FAILED: " + e.getMessage());
+            auditService.record(username, action, details + RESULT_FAILED + e.getMessage());
             throw e;
         } finally {
             long executionTime = System.currentTimeMillis() - startTime;
-            System.out.println("Method " + joinPoint.getSignature().getName() +
+            logger.info("Method " + joinPoint.getSignature().getName() +
                     " executed in " + executionTime + "ms");
         }
     }

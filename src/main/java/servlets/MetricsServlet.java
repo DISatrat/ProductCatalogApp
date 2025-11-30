@@ -4,9 +4,8 @@ import config.BaseServlet;
 import controller.MetricsController;
 import dto.MetricsResponseDTO;
 import mapper.MetricsMapper;
-import util.ServiceLocator;
+import util.ApplicationContext;
 
-import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -19,7 +18,7 @@ public class MetricsServlet extends BaseServlet {
     private final MetricsMapper metricsMapper;
 
     public MetricsServlet() {
-        this.metricsController = new MetricsController(ServiceLocator.getMetricsService());
+        this.metricsController = new MetricsController(ApplicationContext.getMetricsService());
         this.metricsMapper = MetricsMapper.INSTANCE;
     }
 

@@ -5,7 +5,9 @@ import controller.UserController;
 import dto.UserResponseDTO;
 import model.User;
 import model.enums.UserRole;
-import util.ServiceLocator;
+import util.ApplicationContext;
+
+import java.util.logging.Logger;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -20,7 +22,7 @@ public class UserServlet extends BaseServlet {
 
     public UserServlet() {
         this.userController = new UserController(
-                ServiceLocator.getUserService()
+                ApplicationContext.getUserService()
         );
     }
 

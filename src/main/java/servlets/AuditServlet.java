@@ -3,7 +3,7 @@ package servlets;
 import config.BaseServlet;
 import controller.AuditController;
 import dto.AuditEntryDTO;
-import util.ServiceLocator;
+import util.ApplicationContext;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -17,7 +17,7 @@ public class AuditServlet extends BaseServlet {
     private final AuditController auditController;
 
     public AuditServlet() {
-        this.auditController = new AuditController(ServiceLocator.getAuditService());
+        this.auditController = new AuditController(ApplicationContext.getAuditService());
     }
 
     @Override

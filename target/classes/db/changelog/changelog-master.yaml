@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - preConditions:
+      - sqlCheck:
+          expectedResult: 1
+          sql: "SELECT 1"
+
+  - include:
+      file: migrations/001-init-tables.yaml
+
+  - include:
+      file: migrations/002-create-entities.yaml

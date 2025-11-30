@@ -2,11 +2,9 @@ package dto;
 
 import lombok.*;
 
+@Data
 @Builder
 @NoArgsConstructor
-@Getter
-@Setter
-@RequiredArgsConstructor
 @AllArgsConstructor
 public class AuditEntryDTO {
     private Long id;
@@ -14,5 +12,4 @@ public class AuditEntryDTO {
     private String username;
     private String action;
     private String details;
-
 }

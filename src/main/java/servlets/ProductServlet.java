@@ -7,8 +7,7 @@ import dto.ProductResponseDTO;
 import dto.ProductSearchDTO;
 import dto.ProductUpdateDTO;
 import mapper.ProductMapper;
-import model.Product;
-import util.ServiceLocator;
+import util.ApplicationContext;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -25,7 +24,7 @@ public class ProductServlet extends BaseServlet {
 
     public ProductServlet() {
         this.productController = new ProductController(
-                ServiceLocator.getProductService()
+                ApplicationContext.getProductService()
         );
         this.productMapper = ProductMapper.INSTANCE;
     }
@@ -145,14 +144,6 @@ public class ProductServlet extends BaseServlet {
         ProductSearchDTO searchDTO = parseJsonBody(request, ProductSearchDTO.class);
 
         try {
-            System.out.println("=== SEARCH DEBUG ===");
-            System.out.println("Username: " + username);
-            System.out.println("SearchDTO: " + searchDTO);
-            System.out.println("Category: " + searchDTO.getCategory());
-            System.out.println("Brand: " + searchDTO.getBrand());
-            System.out.println("NameSubstr: " + searchDTO.getNameSubstr());
-            System.out.println("PriceMin: " + searchDTO.getPriceMin());
-            System.out.println("PriceMax: " + searchDTO.getPriceMax());
             List<ProductResponseDTO> products = productController.searchProducts(
                     username,
                     searchDTO.getNameSubstr(),
@@ -171,9 +162,7 @@ public class ProductServlet extends BaseServlet {
             sendJsonResponse(response, result, HttpServletResponse.SC_OK);
         } catch (IllegalArgumentException e) {
             sendError(response, e.getMessage(), HttpServletResponse.SC_BAD_REQUEST);
-        }catch (Exception e) {
-            System.err.println("Internal search error: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Exception e) {
             sendError(response, "Search failed: " + e.getMessage(), HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }

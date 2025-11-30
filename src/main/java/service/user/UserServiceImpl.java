@@ -42,4 +42,9 @@ public class UserServiceImpl implements UserService {
     public boolean checkPassword(String pass, String hash) {
         return hashPassword(pass).equals(hash);
     }
+
+    @Override
+    public boolean existsByUsername(String username) {
+        return userRepository.findByUsername(username).isPresent();
+    }
 }

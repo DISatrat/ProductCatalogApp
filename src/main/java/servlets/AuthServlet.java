@@ -5,7 +5,7 @@ import controller.AuthController;
 import dto.LoginRequestDTO;
 import dto.RegisterRequestDTO;
 import dto.UserResponseDTO;
-import util.ServiceLocator;
+import util.ApplicationContext;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -19,8 +19,8 @@ public class AuthServlet extends BaseServlet {
 
     public AuthServlet() {
         this.authController = new AuthController(
-                ServiceLocator.getUserService(),
-                ServiceLocator.getAuditService()
+                ApplicationContext.getUserService(),
+                ApplicationContext.getAuditService()
         );
     }
 
